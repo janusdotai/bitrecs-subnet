@@ -110,10 +110,15 @@ class BaseValidatorNeuron(BaseNeuron):
         super().__init__(config=config)
 
         # Initialize the wandb client
-        self.wandb = WandbHelper(
-            project_name=self.config.wandb.project_name,
-            entity=self.config.wandb.entity,
-        )
+        if self.config.wandb.project_name and self.config.wandb.entity:
+            self.use_wandb = True
+            self.wandb = WandbHelper(
+                project_name=self.config.wandb.project_name,
+                entity=self.config.wandb.entity,
+                config={"neuron_type": self.config.neuron.name}
+            )
+        else:
+            self.use_wandb = False
 
         # Save a copy of the hotkeys to local memory.
         self.hotkeys = copy.deepcopy(self.metagraph.hotkeys)      
@@ -523,8 +528,9 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.debug(f"uint_uids {uint_uids}")
 
             # Log weights to wandb before chain update
-            weights_dict = {str(uid): float(weight) for uid, weight in zip(uint_uids, uint_weights)}
-            self.wandb.log_weights(self.step, weights_dict)
+            if self.use_wandb:
+                weights_dict = {str(uid): float(weight) for uid, weight in zip(uint_uids, uint_weights)}
+                self.wandb.log_weights(self.step, weights_dict)
 
         except Exception as e:
             bt.logging.error(f"convert_weights_and_uids_for_emit function error: {e}")
@@ -543,10 +549,12 @@ class BaseValidatorNeuron(BaseNeuron):
             )
             if result is True:
                 bt.logging.info(f"set_weights on chain successfully! msg: {msg}")
-                self.wandb.log_metrics({"weight_update_success": 1})
+                if self.use_wandb:
+                    self.wandb.log_metrics({"weight_update_success": 1})
             else:
                 bt.logging.error(f"set_weights on chain failed {msg}")
-                self.wandb.log_metrics({"weight_update_success": 0})
+                if self.use_wandb:
+                    self.wandb.log_metrics({"weight_update_success": 0})
         except Exception as e:
             bt.logging.error(f"set_weights failed with exception: {e}")
 

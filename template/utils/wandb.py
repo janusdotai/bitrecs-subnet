@@ -45,6 +45,7 @@ class WandbHelper:
         Log arbitrary metrics to wandb
         """
         wandb.log(metrics)
+        
     
     def finish(self):
         """

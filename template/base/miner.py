@@ -22,6 +22,7 @@ import argparse
 import traceback
 import bittensor as bt
 from template.base.neuron import BaseNeuron
+from template.utils.wandb import WandbHelper
 from template.utils.config import add_miner_args
 from typing import Union
 
@@ -40,6 +41,17 @@ class BaseMinerNeuron(BaseNeuron):
 
     def __init__(self, config=None):
         super().__init__(config=config)
+
+        # Initialize the wandb client
+        if self.config.wandb.project_name and self.config.wandb.entity:
+            self.use_wandb = True
+            self.wandb = WandbHelper(
+                project_name=self.config.wandb.project_name,
+                entity=self.config.wandb.entity,
+                config={"neuron_type": self.config.neuron.name}
+            )
+        else:
+            self.use_wandb = False
       
         # Warn if allowing incoming requests from anyone.
         if not self.config.blacklist.force_validator_permit:
@@ -109,6 +121,9 @@ class BaseMinerNeuron(BaseNeuron):
         self.axon.start()
 
         bt.logging.info(f"Miner starting at block: {self.block}")
+
+        if self.use_wandb:
+            self.wandb.log_metrics({"Miner starting at block:": self.block})
 
         # This loop maintains the miner's operations until intentionally stopped.
         try:

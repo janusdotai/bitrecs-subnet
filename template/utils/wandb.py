@@ -13,11 +13,7 @@ class WandbHelper:
         Initialize WandB tracking
         """
         self.default_config = {
-            "network": "testnet",
-            "neuron_type": "validator",
-            "sample_size": 5,
-            "num_concurrent_forwards": 1,
-            "vpermit_tao_limit": 1024,
+            "neuron_type": "None",
             "run_name": f"validator_{wandb.util.generate_id()}"
         }
         
@@ -45,7 +41,6 @@ class WandbHelper:
         Log arbitrary metrics to wandb
         """
         wandb.log(metrics)
-        
     
     def finish(self):
         """

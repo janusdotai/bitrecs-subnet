@@ -66,11 +66,11 @@ async def do_work(user_prompt: str,
     bt.logging.info(f"do_work LLM server: {server}")  
     bt.logging.info(f"do_work LLM model: {model}")
     
-    max_tries = 100
+    max_tries = 0
     dupe_count = 0
     while dupe_count < 1:
         max_tries += 1
-        if max_tries > 1000:
+        if max_tries > 100:
             bt.logging.error(f"Max tries exceeded - returning empty set")
             return []   
         this_set = random.choices(products, k=num_recs)

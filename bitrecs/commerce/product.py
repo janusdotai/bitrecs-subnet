@@ -25,6 +25,13 @@ class Product:
     sku: str
     name: str
     price: str
+
+    def to_dict(self):
+        return {
+            "sku": self.sku,
+            "name": self.name,
+            "price": self.price
+        }
     
 
 class ProductFactory:

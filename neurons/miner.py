@@ -68,11 +68,11 @@ async def do_work(user_prompt: str,
     
     max_tries = 0
     dupe_count = 0
-    while dupe_count < 1:
-        max_tries += 1
+    while dupe_count < 1:        
         if max_tries > 100:
             bt.logging.error(f"Max tries exceeded - returning empty set")
             return []   
+        max_tries += 1
         this_set = random.choices(products, k=num_recs)
         dupe_count = ProductFactory.get_dupe_count_list(this_set)
         if dupe_count < 1 and user_prompt not in [x["sku"] for x in this_set]:

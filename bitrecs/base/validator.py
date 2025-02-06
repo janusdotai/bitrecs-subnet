@@ -162,11 +162,13 @@ class BaseValidatorNeuron(BaseNeuron):
         if not os.environ.get("BITRECS_PROXY_URL"):
             raise Exception("Please set the BITRECS_PROXY_URL environment variable.")
         self.user_actions: List[UserAction] = []
-        self.loop.run_until_complete(self.action_sync())
+        ##self.loop.run_until_complete(self.action_sync())
+        #asyncio.get_event_loop().run_until_complete(self.action_sync())
+        asyncio.create_task(self.action_sync())
         if len(self.user_actions) == 0:
             bt.logging.error("No user actions found - check bitrecs api")            
         
-        if self.config.wandb.enabled == True: 
+        if self.config.wandb.enabled == True:
             wandb_project = f"bitrecs_{self.network}"
             wandb_entity = self.config.wandb.entity
             if len(wandb_project) == 0 or len(wandb_entity) == 0:
@@ -245,11 +247,11 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.trace(f"Checking uid: {uid} with stake {self.metagraph.S[uid].tao} and trust {self.metagraph.T[uid]}")
             if uid == self.uid:                
                 continue
-            if not self.metagraph.axons[uid].is_serving:                
+            if not self.metagraph.axons[uid].is_serving:
                 continue
-            if self.metagraph.S[uid] == 0:
-                bt.logging.trace(f"uid: {uid} stake 0T, skipping")
-                continue
+            # if self.metagraph.S[uid] == 0:
+            #     bt.logging.trace(f"uid: {uid} stake 0T, skipping")
+            #     continue
             if self.metagraph.S[uid].tao > self.config.neuron.vpermit_tao_limit:
                 bt.logging.trace(f"uid: {uid} stake > {self.config.neuron.vpermit_tao_limit}T, skipping")
                 continue
@@ -273,7 +275,7 @@ class BaseValidatorNeuron(BaseNeuron):
         bt.logging.info(f"\033[1;32m Active miners: {self.active_miners}  \033[0m")
 
 
-    @execute_periodically(timedelta(seconds=120))
+    @execute_periodically(timedelta(seconds=CONST.ACTION_SYNC_INTERVAL))
     async def action_sync(self):
         """
         Periodically fetch user actions 
@@ -384,7 +386,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info("SCORING DONE")
                         bt.logging.info(f"\033[1;32mWINNING MINER: {elected.miner_uid} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING MODEL: {elected.models_used} \033[0m")
-                        bt.logging.info(f"WINNING RESULT: {elected}")
+                        bt.logging.info(f"\033[1;32mWINNING RESULT: {elected} \033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
@@ -407,15 +409,21 @@ class BaseValidatorNeuron(BaseNeuron):
                     else:
                         if not api_exclusive: #Regular validator loop  
                             bt.logging.info("Processing synthetic concurrent forward")
-                            self.loop.run_until_complete(self.concurrent_forward())
+                            #self.loop.run_until_complete(self.concurrent_forward())
+                            #asyncio.create_task(self.concurrent_forward())
+                            asyncio.get_event_loop().run_until_complete(self.concurrent_forward())                            
 
                     if self.should_exit:
                         return
 
                     try:
                         self.sync()
-                        self.loop.run_until_complete(self.miner_sync())
-                        self.loop.run_until_complete(self.action_sync())                        
+                        #asyncio.create_task(self.miner_sync())
+                        #self.loop.run_until_complete(self.miner_sync())
+                        #asyncio.create_task(self.action_sync())
+                        #self.loop.run_until_complete(self.action_sync())
+                        asyncio.get_event_loop().run_until_complete(self.miner_sync())
+                        asyncio.get_event_loop().run_until_complete(self.action_sync())
                     except Exception as e:
                         bt.logging.error(traceback.format_exc())
                         bt.logging.error(f"Failed to sync with exception: {e}")

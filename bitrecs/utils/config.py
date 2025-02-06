@@ -251,14 +251,14 @@ def add_validator_args(cls, parser):
 
     parser.add_argument(
         "--api.enabled",
-        action="store_true",
+        action="store_false",
         help="Enables the validator API endpoint.",
         default=True,
     )
 
     parser.add_argument(
         "--api.exclusive",
-        action="store_true",
+        action="store_false",
         help="If set validator only handles API requests.",
         default=True,
     )

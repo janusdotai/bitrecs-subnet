@@ -360,7 +360,7 @@ class ApiServer:
 
             et_a = int(time.time())
             total_duration = et_a - st_a
-            bt.logging.info("\033[1;32m Bitrecs Subnet - Processed request in {:.2f} seconds \033[0m".format(total_duration))
+            bt.logging.info("\033[1;32m Validator - Processed request in {:.2f} seconds \033[0m".format(total_duration))
 
             return JSONResponse(status_code=200, content=response)
         

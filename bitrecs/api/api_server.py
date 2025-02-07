@@ -73,7 +73,8 @@ class ApiServer:
             self.app,
             host="0.0.0.0",
             port=api_port,
-            log_level="trace" if bt.logging.__trace_on__ else "critical",         
+            log_level="trace" if bt.logging.__trace_on__ else "critical",
+            loop="none"                    
         ))
 
         self.router = APIRouter()

@@ -16,12 +16,16 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+from concurrent.futures import ThreadPoolExecutor
+import os
 import time
 import bittensor as bt
 import asyncio
 from datetime import timedelta
 from bitrecs.base.validator import BaseValidatorNeuron
+from bitrecs.commerce.user_action import UserAction
 from bitrecs.utils.runtime import execute_periodically
+from bitrecs.utils.uids import get_random_miner_uids2, ping_miner_uid
 from bitrecs.utils.version import LocalMetadata
 from bitrecs.validator import forward
 from bitrecs.protocol import BitrecsRequest
@@ -43,9 +47,11 @@ class Validator(BaseValidatorNeuron):
     def __init__(self, config=None):
         super(Validator, self).__init__(config=config)
 
-        bt.logging.info("load_state()")
         self.load_state()
         self.total_request_in_interval = 0
+        if not os.environ.get("BITRECS_PROXY_URL"):
+            raise Exception("Please set the BITRECS_PROXY_URL environment variable.")
+        
 
 
     async def forward(self, pr : BitrecsRequest = None):
@@ -61,7 +67,7 @@ class Validator(BaseValidatorNeuron):
         """                
         return await forward(self, pr)
     
-    
+     
     @execute_periodically(timedelta(seconds=CONST.VERSION_CHECK_INTERVAL))
     async def version_sync(self):
         bt.logging.trace(f"Version sync ran at {int(time.time())}")
@@ -83,13 +89,91 @@ class Validator(BaseValidatorNeuron):
         return
     
 
-async def main():     
-    await GPUInfo.log_gpu_info()
+    @execute_periodically(timedelta(seconds=CONST.MINER_BATTERY_INTERVAL))
+    async def miner_sync(self):
+        """
+            Checks the miners in the metagraph for connectivity and updates the active miners list.
+        """
+        bt.logging.trace(f"\033[1;32m Validator miner_sync running {int(time.time())}.\033[0m")
+        bt.logging.trace(f"neuron.sample_size: {self.config.neuron.sample_size}")
+        bt.logging.trace(f"vpermit_tao_limit: {self.config.neuron.vpermit_tao_limit}")
+        bt.logging.trace(f"block {self.subtensor.block} on step {self.step}")        
+        
+        #available_uids = get_random_miner_uids(self, k=self.config.neuron.sample_size, exclude=excluded)
+        available_uids = get_random_miner_uids2(self, k=self.config.neuron.sample_size)
+        bt.logging.trace(f"get_random_uids: {available_uids}")
+        
+        chosen_uids = available_uids
+        bt.logging.trace(f"chosen_uids: {chosen_uids}")
+        if len(chosen_uids) == 0:
+            bt.logging.error("\033[1;31mNo random qualified miners found - check your connectivity \033[0m")
+            return
+        
+        chosen_uids = list(set(chosen_uids))
+        selected_miners = []
+        for uid in chosen_uids:            
+            bt.logging.trace(f"Checking uid: {uid} with stake {self.metagraph.S[uid]} and trust {self.metagraph.T[uid]}")
+            if uid == self.uid:                
+                continue
+            if not self.metagraph.axons[uid].is_serving:
+                continue
+            # if self.metagraph.S[uid] == 0:
+            #     bt.logging.trace(f"uid: {uid} stake 0T, skipping")
+            #     continue
+            this_stake = float(self.metagraph.S[uid])
+            stake_limit = float(self.config.neuron.vpermit_tao_limit)
+            if this_stake > stake_limit:
+                bt.logging.trace(f"uid: {uid} has stake {this_stake} > {stake_limit}, skipping")
+                continue
+
+            try:
+                ip = self.metagraph.axons[uid].ip
+                if ping_miner_uid(self, uid, 8091, 5):
+                    bt.logging.trace(f"\033[1;32m ping: {ip}:OK \033[0m")
+                    selected_miners.append(uid)
+                else:
+                    bt.logging.trace(f"\033[1;33m ping: {ip}:FALSE \033[0m")
+            except Exception as e:
+                bt.logging.trace(f"\033[1;33 {e} \033[0m")                
+                continue
+        if len(selected_miners) == 0:
+            self.active_miners = []
+            bt.logging.error("\033[31mNo active miners selected in round - check your connectivity \033[0m")
+            return
+        
+        self.active_miners = list(set(selected_miners))
+        bt.logging.info(f"\033[1;32m Active miners: {self.active_miners}  \033[0m")
+        
+
+    @execute_periodically(timedelta(seconds=CONST.ACTION_SYNC_INTERVAL))
+    async def action_sync(self):
+        """
+        Periodically fetch user actions 
+        """
+        sd, ed = UserAction.get_default_range(days_ago=7)
+        bt.logging.trace(f"Gathering user actions for range: {sd} to {ed}")
+        try:
+            self.user_actions = UserAction.get_actions_range(start_date=sd, end_date=ed)
+            bt.logging.trace(f"Success - User actions size: \033[1;32m {len(self.user_actions)} \033[0m")
+        except Exception as e:
+            bt.logging.error(f"Failed to get user actions with exception: {e}")
+        return
+    
+
+async def main():
     bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")
+    await GPUInfo.log_gpu_info()
     with Validator() as validator:
-        start_time = time.time()        
+        start_time = time.time()      
         while True:
-            await validator.version_sync()
+            version_sync_task = asyncio.create_task(validator.version_sync())
+            miner_sync_task = asyncio.create_task(validator.miner_sync())
+            action_sync_task = asyncio.create_task(validator.action_sync())
+
+            await version_sync_task
+            await miner_sync_task
+            await action_sync_task
+            
             bt.logging.info(f"Validator {validator.uid} running... {int(time.time())}")
             if time.time() - start_time > 300:
                 bt.logging.info(

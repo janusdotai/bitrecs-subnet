@@ -68,7 +68,7 @@ async def do_work(user_prompt: str,
     max_tries = 0
     dupe_count = 0
     while dupe_count < 1:        
-        if max_tries > 100:
+        if max_tries > 5_000:
             bt.logging.error(f"Max tries exceeded - returning empty set")
             return []   
         max_tries += 1

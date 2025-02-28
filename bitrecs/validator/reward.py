@@ -206,8 +206,13 @@ def reward(
         #Check duration        
         headers = response.to_headers()
         if "bt_header_dendrite_process_time" in headers:
-            dendrite_time = headers["bt_header_dendrite_process_time"] #0.000132  1.2            
+            dendrite_time = float(headers["bt_header_dendrite_process_time"])
             bt.logging.trace(f"\033[32mMiner {response.miner_uid} dendrite_time: {dendrite_time} \033[0m")
+
+            #TODO - warn of minerx
+            if dendrite_time < 0.5:
+                bt.logging.trace(f"\033[33mWARNING Miner {response.miner_uid} suspect dendrite_time: {dendrite_time} \033[0m")
+
             score = score - ALPHA_TIME_DECAY * float(dendrite_time)
         else:
             bt.logging.error(f"Error in reward: dendrite_time not found in headers")

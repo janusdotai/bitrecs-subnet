@@ -16,7 +16,7 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-from concurrent.futures import ThreadPoolExecutor
+
 import os
 import time
 import bittensor as bt
@@ -150,7 +150,7 @@ class Validator(BaseValidatorNeuron):
         """
         Periodically fetch user actions 
         """
-        sd, ed = UserAction.get_default_range(days_ago=7)
+        sd, ed = UserAction.get_default_range(days_ago=1)
         bt.logging.trace(f"Gathering user actions for range: {sd} to {ed}")
         try:
             self.user_actions = UserAction.get_actions_range(start_date=sd, end_date=ed)
@@ -166,13 +166,12 @@ async def main():
     with Validator() as validator:
         start_time = time.time()      
         while True:
-            version_sync_task = asyncio.create_task(validator.version_sync())
-            miner_sync_task = asyncio.create_task(validator.miner_sync())
-            action_sync_task = asyncio.create_task(validator.action_sync())
-
-            await version_sync_task
-            await miner_sync_task
-            await action_sync_task
+            tasks = [
+                asyncio.create_task(validator.version_sync()),
+                asyncio.create_task(validator.miner_sync()),
+                asyncio.create_task(validator.action_sync())
+            ]                    
+            await asyncio.gather(*tasks)
             
             bt.logging.info(f"Validator {validator.uid} running... {int(time.time())}")
             if time.time() - start_time > 300:

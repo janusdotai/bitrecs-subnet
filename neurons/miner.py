@@ -22,7 +22,6 @@ import sys
 import time
 import typing
 import bittensor as bt
-import bitrecs
 import asyncio
 import ast
 from typing import List
@@ -216,7 +215,7 @@ class Miner(BaseMinerNeuron):
         
 
     async def blacklist(
-        self, synapse: bitrecs.protocol.BitrecsRequest
+        self, synapse: BitrecsRequest
     ) -> typing.Tuple[bool, str]:
         """
         Determines whether an incoming request should be blacklisted and thus ignored. Your implementation should
@@ -284,7 +283,7 @@ class Miner(BaseMinerNeuron):
 
         return False, "Hotkey recognized!"
 
-    async def priority(self, synapse: bitrecs.protocol.BitrecsRequest) -> float:
+    async def priority(self, synapse: BitrecsRequest) -> float:
         """
         The priority function determines the order in which requests are handled. More valuable or higher-priority
         requests are processed before others. You should design your own priority mechanism with care.
@@ -322,7 +321,8 @@ class Miner(BaseMinerNeuron):
         )
         return priority
     
-    def save_state(self):        
+    
+    def save_state(self):
         pass
 
 
@@ -395,12 +395,15 @@ class Miner(BaseMinerNeuron):
 
 
         
-async def main():
+async def main():    
     await GPUInfo.log_gpu_info()    
     with Miner() as miner:
         start_time = time.time()        
         while True:
-            await miner.version_sync()
+            #await miner.version_sync()
+            version_sync_task = asyncio.create_task(miner.version_sync())
+            await version_sync_task
+
             bt.logging.info(f"Miner {miner.uid} running, waiting for work ... {int(time.time())}")
             if time.time() - start_time > 300:
                 bt.logging.info(

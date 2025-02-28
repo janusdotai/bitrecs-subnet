@@ -118,7 +118,8 @@ def test_no_auth_error_validator_rec():
 def test_wrong_auth_error_validator():    
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/ping"
     headers = {       
-        "Authorization": "Bearer wrong"
+        "Authorization": "Bearer wrong",
+        "Content-Type": "application/json"
     }            
     response = requests.get(url, headers=headers)
     print(response.text)
@@ -127,7 +128,8 @@ def test_wrong_auth_error_validator():
 def test_good_auth_root_validator():    
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/"
     headers = {        
-        "Authorization": f"Bearer {BITRECS_API_KEY}"
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"
     }
     response = requests.get(url, headers=headers)
     print(response.text)
@@ -140,7 +142,8 @@ def test_good_auth_root_validator():
 def test_good_auth_ping_validator():    
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/ping"
     headers = {        
-        "Authorization": f"Bearer {BITRECS_API_KEY}"
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"
     }
     response = requests.get(url, headers=headers)
     print(response.text)
@@ -154,7 +157,8 @@ def test_good_auth_ping_validator():
 def test_good_server_time_validator():    
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/ping"
     headers = {        
-        "Authorization": f"Bearer {BITRECS_API_KEY}"
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"
     }
     response = requests.get(url, headers=headers)
     print(response.text)
@@ -173,7 +177,8 @@ def test_good_server_time_validator():
 def test_version_ok_validator():    
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/version"
     headers = {        
-        "Authorization": f"Bearer {BITRECS_API_KEY}"
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"
     }
     response = requests.get(url, headers=headers)
     print(response.text)    
@@ -192,7 +197,8 @@ def test_rec_no_sig_is_rejected_ok():
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/rec"
     headers = {        
         "Authorization": f"Bearer {BITRECS_API_KEY}",
-        "x-timestamp": str(int(time.time()))
+        "x-timestamp": str(int(time.time())),
+        "Content-Type": "application/json"
     }
     br = get_bitrecs_dummy_request(5)
     data = br.model_dump()
@@ -245,7 +251,8 @@ def test_rec_wrong_sig_rejected_ok():
 def test_rate_limit_hit_root_ok():
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/"
     headers = {
-        "Authorization": f"Bearer {BITRECS_API_KEY}"             
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"             
     }
 
     num_requests = NUM_REQUESTS
@@ -266,7 +273,8 @@ def test_rate_limit_hit_root_ok():
 def test_rate_limit_hit_ping_ok():
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/ping"
     headers = {
-        "Authorization": f"Bearer {BITRECS_API_KEY}"        
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"        
     }
 
     num_requests = NUM_REQUESTS
@@ -289,7 +297,8 @@ def test_rate_limit_hit_ping_ok():
 def test_rate_limit_hit_version_ok():
     url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/version"
     headers = {
-        "Authorization": f"Bearer {BITRECS_API_KEY}"        
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "Content-Type": "application/json"
     }
 
     num_requests = NUM_REQUESTS
@@ -341,3 +350,18 @@ def test_rate_limit_hit_rec_ok():
     print(f"Rejected: {rejected}, Rate Limited: {rate_limited}")
     if rate_limited > 0:
         assert rate_limited > rate_limited_threshold
+
+
+
+def test_non_json_post_rejected():
+    url = f"http://{TEST_VALIDATOR_IP}:{VALIDATOR_PORT}/rec"
+    headers = {
+        "Authorization": f"Bearer {BITRECS_API_KEY}",
+        "x-timestamp": str(int(time.time()))
+    }
+    files = {
+        'file': ('data.txt', 'This is not JSON data', 'text/plain')
+    }
+    response = requests.post(url, headers=headers, files=files)
+    print(response.text)
+    assert response.status_code == 415

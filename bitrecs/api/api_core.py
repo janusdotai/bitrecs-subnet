@@ -6,44 +6,67 @@ from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+import ipaddress
 
 def get_client_ip(request: Request) -> str:
+    """
+    Gets the client IP address, handling proxies and potential spoofing.
+    Prioritizes x-real-ip, then x-forwarded-for (last IP), then falls back to request.client.host.
+    """
+    if "x-real-ip" in request.headers:
+        return request.headers["x-real-ip"].strip()
+
     if "x-forwarded-for" in request.headers:
-        # X-Forwarded-For can contain multiple IPs, take the first one
-        #return request.headers["x-forwarded-for"].split(",")[0].strip()
-        return request.headers.get("x-forwarded-for")
-    return get_remote_address(request)
+        forwarded_for = request.headers["x-forwarded-for"].strip()
+        ips = [ip.strip() for ip in forwarded_for.split(",")]
+        if ips:
+            # Get the last IP in the list (the client IP)
+            return ips[-1]
+
+    if request.client:
+        return str(request.client.host)
+
+    return get_remote_address(request)  # Fallback
 
 limiter = Limiter(key_func=get_client_ip)
 
-
 @limiter.limit("120/minute")
 async def filter_allowed_ips(self, request: Request, call_next) -> Response:
+    """
+    Filters requests based on allowed IPs, handling bypass and rate limiting.
+    """
     try:
         if self.bypass_whitelist:
             response = await call_next(request)
             return response
-    
-        forwarded_for = request.headers.get("x-forwarded-for")
-        if not forwarded_for:
-            bt.logging.warning(f"Missing x-forwarded-for using get_remote_address ... ")
-            forwarded_for = get_remote_address(request)
-        
-        bt.logging.trace(f"Resolved to: {forwarded_for}")
 
-        if self.allowed_ips and forwarded_for not in self.allowed_ips:
-            bt.logging.error(f"Blocked IP: {forwarded_for}")
+        client_ip = get_client_ip(request)
+        bt.logging.trace(f"Resolved client IP: {client_ip}")
+
+        # Validate IP address
+        try:
+            ipaddress.ip_address(client_ip)
+        except ValueError:
+            bt.logging.warning(f"Invalid IP address: {client_ip}")
+            return Response(
+                content="Invalid IP address",
+                status_code=400,
+            )
+
+        if self.allowed_ips and client_ip not in self.allowed_ips:
+            bt.logging.error(f"Blocked IP: {client_ip}")
             return Response(
                 content="You do not have permission to access this resource",
                 status_code=403,
             )
-            
-        bt.logging.trace(f"Allowed IP {forwarded_for}")
+
+        bt.logging.trace(f"Allowed IP {client_ip}")
         response = await call_next(request)
         return response
 
     except RateLimitExceeded as e:
-        bt.logging.warning(f"Rate limit exceeded for {forwarded_for}")
+        client_ip = get_client_ip(request)
+        bt.logging.warning(f"Rate limit exceeded for {client_ip}")
         return JSONResponse(
             status_code=429,
             content={
@@ -54,63 +77,3 @@ async def filter_allowed_ips(self, request: Request, call_next) -> Response:
             headers={"Retry-After": "60"}
         )
 
-
-
-# def define_allowed_ips(self, url, netuid, min_stake):
-#     while True:
-#         try:
-#             state = {}
-#             all_allowed_ips = []
-#             subtensor = bt.subtensor(url)
-#             metagraph = subtensor.metagraph(netuid)
-#             for uid in range(len(metagraph.total_stake)):
-#                 if metagraph.total_stake[uid] > min_stake:
-#                     all_allowed_ips.append(metagraph.axons[uid].ip)
-#                     state[uid] = {
-#                         "stake": metagraph.total_stake[uid].item(),
-#                         "ip": metagraph.axons[uid].ip,
-#                     }
-#             self.allowed_ips = all_allowed_ips
-#             # sort by stake
-#             state = dict(
-#                 sorted(state.items(), key=lambda item: item[1]["stake"], reverse=True)
-#             )
-#             print("Updated allowed ips", flush=True)
-#             print(state)
-#         except Exception as e:
-#             print("Exception while updating allowed ips", str(e), flush=True)
-#         time.sleep(60)
-
-
-
-# class OnlyJSONMiddleware(BaseHTTPMiddleware):
-#     async def dispatch(self, request: Request, call_next) -> Response:
-#         if not request.method in ['POST']:
-#             response = await call_next(request)
-#             return response
-
-
-#         if 'application/json' not in request.headers.get('Content-Type', ''):
-#             return JSONResponse(
-#                 status_code=415,
-#                 content={
-#                     "detail": "Invalid Request",
-#                     "status_code": 415                    
-#                 }                
-#             )
-#             #raise HTTPException(status_code=415, detail="Only JSON requests are accepted")
-        
-#         try:            
-#             await request.json()
-#         except ValueError:            
-#             #raise HTTPException(status_code=400, detail="Invalid JSON in request body")
-#             return JSONResponse(
-#                 status_code=415,
-#                 content={
-#                         "detail": "Invalid Request",
-#                         "status_code": 415                    
-#                     }                
-#             )
-        
-#         response = await call_next(request)
-#         return response

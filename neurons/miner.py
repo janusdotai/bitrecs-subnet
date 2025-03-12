@@ -65,17 +65,18 @@ async def do_work(user_prompt: str,
     bt.logging.info(f"do_work LLM server: {server}")  
     bt.logging.info(f"do_work LLM model: {model}")
     
-    max_tries = 0
+    loop_ceiling = 500_000
+    attempts = 0
     dupe_count = 0
     while dupe_count < 1:        
-        if max_tries > 5_000:
-            bt.logging.error(f"Max tries exceeded - returning empty set")
-            return []   
-        max_tries += 1
+        if attempts > loop_ceiling:
+            bt.logging.error(f"Max {loop_ceiling} tries exceeded - returning empty set")
+            return []
+        attempts += 1
         this_set = random.choices(products, k=num_recs)
         dupe_count = ProductFactory.get_dupe_count_list(this_set)
         if dupe_count < 1 and user_prompt not in [x["sku"] for x in this_set]:
-            bt.logging.info(f"\033[32m Bootleg Miner - Success after {max_tries} tries \033[0m")
+            bt.logging.info(f"\033[32m Bootleg Miner - Success after {attempts} tries \033[0m")
             return this_set
             
         bt.logging.info(f"Dupe count: {dupe_count} - retrying ...")

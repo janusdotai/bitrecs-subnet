@@ -68,6 +68,7 @@ async def do_work(user_prompt: str,
     loop_ceiling = 500_000
     attempts = 0
     dupe_count = 0
+    bt.logging.info(f"\033[33m minerx attempting {loop_ceiling} tries \033[0m")
     while dupe_count < 1:        
         if attempts > loop_ceiling:
             bt.logging.error(f"Max {loop_ceiling} tries exceeded - returning empty set")

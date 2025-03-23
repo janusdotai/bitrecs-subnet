@@ -172,36 +172,33 @@ class Validator(BaseValidatorNeuron):
 
         # if self.step < 5:
         #     bt.logging.trace(f"Skipping R2 sync for step {self.step}")
-        #     return
-        #bt.wallet(name=wallet_name, hotkey=hotkey)
+        #     return        
 
-        if not self.config.wallet.name:
-            bt.logging.error(f"Wallet name not found in config")
-            return
-        if not self.config.wallet.hotkey:
-            bt.logging.error(f"Wallet hotkey not found in config")
-            return
-
-        wallet = bt.wallet(name=self.config.wallet.name, hotkey=self.config.wallet.hotkey)
-        keypair = wallet.coldkeypub
-        llm_provider = "OPEN_ROUTER"
-        llm_model = "google/gemini-flash-1.5-8b"
-        
-        update_request = ValidatorUploadRequest(
-            hot_key=self.config.wallet.hotkey,
-            val_uid=self.config.netuid,
-            step=self.step,
-            llm_provider=llm_provider,
-            llm_model=llm_model
-        )
-        bt.logging.trace(f"Sending response sync request: {update_request}")
-       
         try:
+            if not self.wallet.coldkeypub_file.exists():
+                bt.logging.error("No coldkeypub file found")
+                return
+            
+            keypair = self.wallet.coldkeypub
+            # wallet = bt.wallet(name=self.config.wallet.name, hotkey=self.config.wallet.hotkey)
+            # keypair = wallet.coldkeypub
+            llm_provider = "OPEN_ROUTER"
+            llm_model = "google/gemini-flash-1.5-8b"
+            
+            update_request = ValidatorUploadRequest(
+                hot_key=self.config.wallet.hotkey,
+                val_uid=self.config.netuid,
+                step=self.step,
+                llm_provider=llm_provider,
+                llm_model=llm_model
+            )
+            bt.logging.trace(f"Sending response sync request: {update_request}")
             sync_result = put_r2_upload(update_request, keypair)            
             if sync_result:
                 bt.logging.trace(f"\033[1;32m Success - R2 updated sync_result: {sync_result} \033[0m")               
             else:
                 bt.logging.error(f"\033[1;31m Failed to update R2 \033[0m")
+
         except Exception as e:
             bt.logging.error(f"Failed to update R2 with exception: {e}")
         finally:

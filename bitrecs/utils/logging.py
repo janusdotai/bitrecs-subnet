@@ -95,8 +95,15 @@ def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> No
     try:
         frames = []
         for response in responses:
-            headers = response.to_headers()
-            df = pd.json_normalize(headers)          
+            if not isinstance(response, BitrecsRequest):
+                bt.logging.warning(f"Skipping invalid response type: {type(response)}")
+                continue
+             # Combine headers and request data
+            data = {
+                **response.to_headers(),
+                **response.to_dict()
+            }
+            df = pd.json_normalize(data)          
             frames.append(df)
         final = pd.concat(frames)
 

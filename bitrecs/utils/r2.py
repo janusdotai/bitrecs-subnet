@@ -10,7 +10,7 @@ from datetime import datetime
 from dataclasses import asdict, dataclass, field
 from substrateinterface import Keypair
 
-#SERVICE_URL = "http://localhost:8000"
+
 SERVICE_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 
 
@@ -71,21 +71,16 @@ def get_r2_upload_url2(report: ValidatorUploadRequest, keypair: Keypair) -> str:
         )        
         
         if response.status_code == 200:
-            result = response.json()
-            #print("Response:", json.dumps(result, indent=2))
+            result = response.json()            
             bt.logging.trace("Response:", json.dumps(result, indent=2)) 
-            if "signed_url" in result:
-                #print("Successfully got signed URL:", result["signed_url"])
-                bt.logging.trace("Successfully got signed URL:", result["signed_url"])
+            if "signed_url" in result:                
+                #bt.logging.trace("Successfully got signed URL:", result["signed_url"])
                 return result["signed_url"]                
-            else:
-                #print("No signed_url in response")
+            else:                
                 bt.logging.error("No signed_url in response")
                 return ""
-        else:
-            #print(f"Request failed with status code: {response.status_code}")
-            bt.logging.error(f"Request failed with status code: {response.status_code}")
-            #print(response.text)
+        else:            
+            bt.logging.error(f"Request failed with status code: {response.status_code}")            
             bt.logging.error(response.text)
             return ""
 
@@ -96,25 +91,14 @@ def get_r2_upload_url2(report: ValidatorUploadRequest, keypair: Keypair) -> str:
 
 
 def put_r2_upload(request: ValidatorUploadRequest, keypair: Keypair) -> bool:
-    if not request:
-        return False
-    if not keypair: 
-        return False
-
-    # val = {
-    #     "hot_key":  keypair.ss58_address,
-    #     "val_uid": request.val_uid,
-    #     "step": request.step,
-    #     "llm_provider": request.llm_provider,
-    #     "llm_model": request.llm_model
-    # }
+    if not request or not keypair:
+        return False    
     
     signed_url = get_r2_upload_url2(request, keypair)    
     if not is_valid_url(signed_url):        
         bt.logging.error("Failed to get signed URL")            
-        return False
+        return False    
     
-    #data_file = os.path.join(PARENT_DIR, "miner_responses.db")
     data_file = os.path.join(os.getcwd(), 'miner_responses.db')
     if not os.path.exists(data_file):        
         bt.logging.error(f"Miner response file does not exist: {data_file}")  
@@ -122,11 +106,9 @@ def put_r2_upload(request: ValidatorUploadRequest, keypair: Keypair) -> bool:
     
     bt.logging.trace("STARTING UPLOAD -----------------------------------------")
     try:
-        # Open file in binary mode
         with open(data_file, 'rb') as f:
             file_data = f.read()
             
-        # Set proper headers for the PUT request
         headers = {
             'Content-Type': 'application/x-sqlite3',
             'Content-Length': str(len(file_data))

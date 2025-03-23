@@ -162,7 +162,7 @@ class Validator(BaseValidatorNeuron):
         return
     
     
-    @execute_periodically(timedelta(seconds=120))
+    @execute_periodically(timedelta(seconds=CONST.R2_SYNC_INTERVAL))
     async def response_sync(self):
         """
         Periodically sync miner responses to R2

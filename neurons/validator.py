@@ -168,25 +168,23 @@ class Validator(BaseValidatorNeuron):
         Peridically sync miner responses to R2
         """
         time.perf_counter()
-        bt.logging.info(f"Starting R2 Sync at {int(time.time())}")
+        bt.logging.info(f"Starting R2 Sync at {int(time.time())}")        
+        bt.logging.info(f"Wallet {self.wallet}")
+        keypair = self.wallet.coldkeypub
+        bt.logging.trace(f"Using coldkeypub with address: {keypair.ss58_address}")
 
         # if self.step < 5:
         #     bt.logging.trace(f"Skipping R2 sync for step {self.step}")
-        #     return        
+        #     return 
 
         try:
-            if not self.wallet.coldkeypub_file.exists():
-                bt.logging.error("No coldkeypub file found")
-                return
             
             keypair = self.wallet.coldkeypub
-            # wallet = bt.wallet(name=self.config.wallet.name, hotkey=self.config.wallet.hotkey)
-            # keypair = wallet.coldkeypub
             llm_provider = "OPEN_ROUTER"
             llm_model = "google/gemini-flash-1.5-8b"
             
             update_request = ValidatorUploadRequest(
-                hot_key=self.config.wallet.hotkey,
+                hot_key=self.wallet.hotkey.ss58_address,
                 val_uid=self.config.netuid,
                 step=self.step,
                 llm_provider=llm_provider,

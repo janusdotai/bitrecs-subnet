@@ -162,47 +162,39 @@ class Validator(BaseValidatorNeuron):
         return
     
     
-    @execute_periodically(timedelta(seconds=90))
+    @execute_periodically(timedelta(seconds=120))
     async def response_sync(self):
         """
-        Peridically sync miner responses to R2
+        Periodically sync miner responses to R2
         """
-        time.perf_counter()
-        bt.logging.info(f"Starting R2 Sync at {int(time.time())}")        
-        bt.logging.info(f"Wallet {self.wallet}")
-        keypair = self.wallet.coldkeypub
-        bt.logging.trace(f"Using coldkeypub with address: {keypair.ss58_address}")
-
-        # if self.step < 5:
-        #     bt.logging.trace(f"Skipping R2 sync for step {self.step}")
-        #     return 
-
+        start_time = time.perf_counter()
+        bt.logging.info(f"Starting R2 Sync at {int(time.time())}")
+        if not self.wallet or not self.wallet.hotkey:
+            bt.logging.error("Hotkey not found - skipping R2 sync")
+            return
         try:
-            
-            keypair = self.wallet.coldkeypub
-            llm_provider = "OPEN_ROUTER"
-            llm_model = "google/gemini-flash-1.5-8b"
-            
+            keypair = self.wallet.hotkey
+            bt.logging.trace(f"Using hotkey with address: {keypair.ss58_address}")
+                
             update_request = ValidatorUploadRequest(
                 hot_key=self.wallet.hotkey.ss58_address,
                 val_uid=self.config.netuid,
                 step=self.step,
-                llm_provider=llm_provider,
-                llm_model=llm_model
+                llm_provider="OPEN_ROUTER",
+                llm_model="google/gemini-flash-1.5-8b"
             )
             bt.logging.trace(f"Sending response sync request: {update_request}")
-            sync_result = put_r2_upload(update_request, keypair)            
+            sync_result = put_r2_upload(update_request, keypair)
             if sync_result:
-                bt.logging.trace(f"\033[1;32m Success - R2 updated sync_result: {sync_result} \033[0m")               
+                bt.logging.trace(f"\033[1;32m Success - R2 updated sync_result: {sync_result} \033[0m")
             else:
                 bt.logging.error(f"\033[1;31m Failed to update R2 \033[0m")
 
         except Exception as e:
             bt.logging.error(f"Failed to update R2 with exception: {e}")
         finally:
-            end_time = time.perf_counter()
-            bt.logging.info(f"R2 Sync complete in {end_time} seconds")
-        return
+            duration = time.perf_counter() - start_time
+            bt.logging.info(f"R2 Sync complete in {duration:.2f} seconds")
     
     
 

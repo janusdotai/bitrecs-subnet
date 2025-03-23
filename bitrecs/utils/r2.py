@@ -9,8 +9,6 @@ from typing import Any, Dict, Tuple
 from datetime import datetime
 from dataclasses import asdict, dataclass, field
 from substrateinterface import Keypair
-
-
 SERVICE_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 
 
@@ -23,8 +21,8 @@ class ValidatorUploadRequest:
     llm_provider: str = field(default_factory=str)
     llm_model: str = field(default_factory=str)
 
-    def to_dict(self) -> Dict[str, Any]:        
-        return asdict(self)    
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
 
 
 def is_valid_url(url: str) -> bool:
@@ -71,16 +69,15 @@ def get_r2_upload_url2(report: ValidatorUploadRequest, keypair: Keypair) -> str:
         )        
         
         if response.status_code == 200:
-            result = response.json()            
-            bt.logging.trace("Response:", json.dumps(result, indent=2)) 
-            if "signed_url" in result:                
-                #bt.logging.trace("Successfully got signed URL:", result["signed_url"])
-                return result["signed_url"]                
+            result = response.json()
+            if "signed_url" in result:
+                return result["signed_url"]
             else:                
                 bt.logging.error("No signed_url in response")
+                bt.logging.trace("Response:", json.dumps(result, indent=2))
                 return ""
         else:            
-            bt.logging.error(f"Request failed with status code: {response.status_code}")            
+            bt.logging.error(f"Request failed with status code: {response.status_code}")
             bt.logging.error(response.text)
             return ""
 

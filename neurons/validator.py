@@ -184,13 +184,15 @@ class Validator(BaseValidatorNeuron):
 
         wallet = bt.wallet(name=self.config.wallet.name, hotkey=self.config.wallet.hotkey)
         keypair = wallet.coldkeypub
+        llm_provider = "OPEN_ROUTER"
+        llm_model = "google/gemini-flash-1.5-8b"
         
         update_request = ValidatorUploadRequest(
-            hot_key=self.config.wallet.hotkey.ss58_address,
+            hot_key=self.config.wallet.hotkey,
             val_uid=self.config.netuid,
             step=self.step,
-            llm_provider=self.config.llm.provider,
-            llm_model=self.config.llm.model
+            llm_provider=llm_provider,
+            llm_model=llm_model
         )
         bt.logging.trace(f"Sending response sync request: {update_request}")
        

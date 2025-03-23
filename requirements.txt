@@ -16,5 +16,5 @@ loguru==0.7.3
 wandb==0.19.1
 tiktoken==0.8.0
 slowapi==0.1.9
-
+substrate-interface==1.7.11
 

@@ -168,14 +168,23 @@ class Validator(BaseValidatorNeuron):
         Peridically sync miner responses to R2
         """
         time.perf_counter()
-        bt.logging.trace(f"Starting R2 Sync at {int(time.time())}")
+        bt.logging.info(f"Starting R2 Sync at {int(time.time())}")
 
         # if self.step < 5:
         #     bt.logging.trace(f"Skipping R2 sync for step {self.step}")
         #     return
+        #bt.wallet(name=wallet_name, hotkey=hotkey)
 
-        wallet = bt.wallet(name=self.config.wallet.name)
-        keypair = wallet.coldkey
+        if not self.config.wallet.name:
+            bt.logging.error(f"Wallet name not found in config")
+            return
+        if not self.config.wallet.hotkey:
+            bt.logging.error(f"Wallet hotkey not found in config")
+            return
+
+        wallet = bt.wallet(name=self.config.wallet.name, hotkey=self.config.wallet.hotkey)
+        keypair = wallet.coldkeypub
+        
         update_request = ValidatorUploadRequest(
             hot_key=self.config.wallet.hotkey.ss58_address,
             val_uid=self.config.netuid,
@@ -195,7 +204,7 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"Failed to update R2 with exception: {e}")
         finally:
             end_time = time.perf_counter()
-            bt.logging.trace(f"R2 Sync complete in {end_time} seconds")
+            bt.logging.info(f"R2 Sync complete in {end_time} seconds")
         return
     
     

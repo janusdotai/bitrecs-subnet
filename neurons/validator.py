@@ -179,7 +179,7 @@ class Validator(BaseValidatorNeuron):
             update_request = ValidatorUploadRequest(
                 hot_key=self.wallet.hotkey.ss58_address,
                 val_uid=self.config.netuid,
-                step=self.step,
+                step=str(self.step),
                 llm_provider="OPEN_ROUTER",
                 llm_model="google/gemini-flash-1.5-8b"
             )

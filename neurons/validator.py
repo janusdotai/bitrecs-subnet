@@ -24,6 +24,7 @@ import asyncio
 from datetime import timedelta
 from bitrecs.base.validator import BaseValidatorNeuron
 from bitrecs.commerce.user_action import UserAction
+from bitrecs.utils.r2 import ValidatorUploadRequest
 from bitrecs.utils.runtime import execute_periodically
 from bitrecs.utils.uids import get_random_miner_uids2, ping_miner_uid
 from bitrecs.utils.version import LocalMetadata
@@ -31,6 +32,7 @@ from bitrecs.validator import forward
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.gpu import GPUInfo
 from bitrecs.utils import constants as CONST
+from bitrecs.utils.r2 import put_r2_upload
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -159,6 +161,43 @@ class Validator(BaseValidatorNeuron):
             bt.logging.error(f"Failed to get user actions with exception: {e}")
         return
     
+    
+    @execute_periodically(timedelta(seconds=900))
+    async def response_sync(self):
+        """
+        Peridically sync miner responses to R2
+        """
+        time.perf_counter()
+        bt.logging.trace(f"Starting R2 Sync at {int(time.time())}")
+        if self.step < 5:
+            bt.logging.trace(f"Skipping R2 sync for step {self.step}")
+            return
+
+        wallet = bt.wallet(name=self.config.wallet.name)
+        keypair = wallet.coldkey
+    
+        update_request = ValidatorUploadRequest(
+            hot_key=self.config.wallet.hotkey.ss58_address,
+            val_uid=self.config.netuid,
+            step=self.step,
+            llm_provider=self.config.llm.provider,
+            llm_model=self.config.llm.model
+        )           
+
+        bt.logging.trace(f"Sending response sync request: {update_request}")
+       
+        try:
+            sync_result = put_r2_upload(update_request, keypair)
+            if sync_result:
+                bt.logging.trace(f"Success - R2 updated: \033[1;32m {sync_result} \033[0m")
+                bt.logging.trace(f"R2 Sync complete in {time.perf_counter()} seconds")
+            else:
+                bt.logging.error(f"Failed to update R2")
+        except Exception as e:
+            bt.logging.error(f"Failed to update R2 with exception: {e}")
+        return
+    
+    
 
 async def main():
     bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")
@@ -169,7 +208,8 @@ async def main():
             tasks = [
                 asyncio.create_task(validator.version_sync()),
                 asyncio.create_task(validator.miner_sync()),
-                asyncio.create_task(validator.action_sync())
+                asyncio.create_task(validator.action_sync()),
+                asyncio.create_task(validator.response_sync())
             ]                    
             await asyncio.gather(*tasks)
             

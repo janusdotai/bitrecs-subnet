@@ -350,9 +350,8 @@ class Miner(BaseMinerNeuron):
             case LLM.VLLM:
                 model = "NousResearch/Meta-Llama-3-8B-Instruct"
                 #model = "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF"
-            case LLM.GEMINI:
-                #model = "gemini-1.5-flash"
-                model = "gemini-2.0-flash-exp"
+            case LLM.GEMINI:                                
+                model = "gemini-2.0-flash"
             case LLM.GROK:
                 model = "grok-beta"
             case LLM.CLAUDE:

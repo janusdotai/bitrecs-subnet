@@ -21,6 +21,7 @@ from cryptography.exceptions import InvalidSignature
 from uvicorn.config import Config
 from uvicorn.server import Server
 from dotenv import load_dotenv
+from json_repair import repair_json
 load_dotenv()
 
 ForwardFn = Callable[[BitrecsRequest], BitrecsRequest]
@@ -300,8 +301,8 @@ class ApiServer:
 
             await self.verify_request2(request, x_signature, x_timestamp)
 
-            store_catalog = ProductFactory.try_parse_context(request.context)
-            #store_catalog = ProductFactory.try_parse_context_strict(request.context)
+            #store_catalog = ProductFactory.try_parse_context(request.context)
+            store_catalog = ProductFactory.try_parse_context_strict(request.context)
             catalog_size = len(store_catalog)
             bt.logging.trace(f"REQUEST CATALOG SIZE: {catalog_size}")
             if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
@@ -342,7 +343,22 @@ class ApiServer:
                 return JSONResponse(status_code=500,
                                     content={"detail": "error - forward", "status_code": 500})
 
-            final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
+            #TODO: reward is not 100% strict as we tolerate llms returning good enough json
+            #however our standard to return to clients must be strict and fail gracefully
+            final_recs = [None] * len(response.results)  # Pre-allocate list with same length
+            for i, idx in enumerate(response.results):
+                try:
+                    repaired = repair_json(idx)
+                    rec = json.loads(repaired)
+                    standardized = json.dumps(rec)
+                    final_recs[i] = json.loads(standardized)
+                except Exception as e:
+                    bt.logging.error(f"Failed to standardize result at index {i}: {idx}, error: {e}")
+                    final_recs[i] = None  # Mark failed entries as None
+
+            # Remove any None entries while preserving order
+            final_recs = [r for r in final_recs if r is not None]
+
             response = {
                 "user": response.user, 
                 "original_query": response.query,

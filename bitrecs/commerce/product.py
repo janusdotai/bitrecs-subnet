@@ -200,18 +200,18 @@ class ProductFactory:
         Strict converter expects a json array of products with sku/name/price fields
 
         """ 
-        result: list[Product] = []
-        for p in json.loads(context):
-            try:
-                if 'sku' not in p:                    
+        result: list[Product] = []        
+        try:
+            for product in json.loads(context):
+                if 'sku' not in product:
                     continue
-                if 'name' not in p:                    
+                if 'name' not in product:
                     continue
-                if 'price' not in p:                    
+                if 'price' not in product:
                     continue
                 
-                good_json_string = json_repair.repair_json(str(p))
-                product = json.loads(good_json_string)
+                # good_json_string = json_repair.repair_json(str(p))
+                # product = json.loads(good_json_string)
 
                 sku = product["sku"]
                 name = product["name"]
@@ -220,10 +220,12 @@ class ProductFactory:
 
                 thing = Product(sku=sku, name=name, price=price)
                 result.append(thing)
-            except Exception as e:
-                bt.logging.error(f"try_parse_context3 Exception: {e}")
-                continue
-        return result
+        except Exception as e:
+            bt.logging.error(f"try_parse_context3 Exception: {e}")
+            pass
+        
+        sorted_result = sorted(result, key=lambda x: x.sku)
+        return sorted_result
 
 
    

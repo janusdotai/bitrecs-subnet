@@ -31,6 +31,7 @@ class OllamaLocal():
             return base64.b64encode(file.read()).decode("utf-8")
         
     def ask_ollama(self, prompt) -> str:
+        #return self.ask_ollama_long_ctx(prompt, 8000)
         data = {
             "model": self.model,
             "system": self.system_prompt,
@@ -43,41 +44,55 @@ class OllamaLocal():
             "stream": False,
             "keep_alive": self.keep_alive,
             "options": {
-                "temperature": self.temp,
+                "temperature": self.temp                
             }
         }
         # print(data)
         return self.call_ollama(data)
+    
         
-
-    # def ask_ollama_long_ctx(self, prompt) -> str:
-    #     options = {
-    #         "temperature": self.temp,
-    #     }
+    def ask_ollama_long_ctx(self, prompt, num_ctx: int = None) -> str:
+        """Send a prompt to Ollama with optional longer context window.
         
-    #     if os.environ.get("num_ctx") is not None:
-    #         num_ctx = int(os.environ.get('num_ctx'))
-    #         print(f"CUSTOM CTX LENGTH {num_ctx}")
-    #         options = {
-    #             "temperature": self.temp,
-    #             "num_ctx": num_ctx
-    #         }
+        Args:
+            prompt (str): The prompt to send to the model
+            num_ctx (int, optional): Context window size. If None, uses environment variable
+                
+        Returns:
+            str: The model's response
+        """
+        options = {
+            "temperature": self.temp,
+        }        
+     
+        if num_ctx is not None:
+            options["num_ctx"] = max(int(num_ctx), 2048)        
+        elif os.environ.get("num_ctx") is not None:
+            env_ctx = os.environ.get("num_ctx")
+            try:
+                ctx_value = max(int(env_ctx), 2048)
+                options["num_ctx"] = ctx_value
+                print(f"Using context length from environment: {ctx_value}")
+            except ValueError:
+                print(f"Invalid context length in environment: {env_ctx}, using default 2048")
+                options["num_ctx"] = 2048
+        else:
+            options["num_ctx"] = 2048
 
-    #     data = {
-    #         "model": self.model,       
-    #         "system": self.system_prompt,    
-    #         "messages": [              
-    #             {
-    #                 "role": "user",
-    #                 "content": prompt
-    #             }
-    #         ],
-    #         "stream": False,
-    #         "keep_alive": self.keep_alive,
-    #         "options": options
-    #     }
-    #     # print(data)
-    #     return self.call_ollama(data)
+        data = {
+            "model": self.model,       
+            "system": self.system_prompt,    
+            "messages": [              
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "stream": False,
+            "keep_alive": self.keep_alive,
+            "options": options
+        }
+        return self.call_ollama(data)
     
 
     def get_ollama_caption(self, file_path) -> str:        

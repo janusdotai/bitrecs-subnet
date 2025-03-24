@@ -22,15 +22,15 @@ map = [
     {"provider": LLM.VLLM, "model": "NousResearch/Meta-Llama-3-8B-Instruct"},
     {"provider": LLM.CHAT_GPT, "model": "gpt-4o-mini"},
 
-    {"provider": LLM.OPEN_ROUTER, "model": "nvidia/llama-3.1-nemotron-70b-instruct"},
+    #{"provider": LLM.OPEN_ROUTER, "model": "nvidia/llama-3.1-nemotron-70b-instruct"},
+    #{"provider": LLM.OPEN_ROUTER, "model": "nousresearch/deephermes-3-llama-3-8b-preview:free"},
 
     {"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-lite-v1"},    
     #{"provider": LLM.OPEN_ROUTER, "model": "cohere/command-r7b-12-2024"},
-    #{"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-micro-v1"},
-    
-    #{"provider": LLM.OPEN_ROUTER, "model": "google/google/gemini-flash-1.5-8b"},
-    {"provider": LLM.OPEN_ROUTER, "model": "google/gemini-2.0-flash-exp:free"},    
-    #{"provider": LLM.OPEN_ROUTER, "model": "deepseek/deepseek-chat"},
+    #{"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-micro-v1"},    
+    {"provider": LLM.OPEN_ROUTER, "model": "google/gemini-flash-1.5-8b"},
+    #{"provider": LLM.OPEN_ROUTER, "model": "google/gemini-2.0-flash-lite-001"},  
+    #{"provider": LLM.OPEN_ROUTER, "model": "google/gemini-2.0-flash-001"},  
     
     {"provider": LLM.GROK, "model": "grok-2-latest"},
     {"provider": LLM.GEMINI, "model": "gemini-1.5-flash-8b"},
@@ -504,7 +504,7 @@ def test_call_multiple_open_router_amazon_5k_random():
                 assert count == 1
 
             print("asserting user_prompt not in sku")
-            assert user_prompt not in sku
+            assert user_prompt not in skus
             
             success_count += 1
             print(f"provider: \033[32m {this_provider} PASSED amazon \033[0m with: {model}")

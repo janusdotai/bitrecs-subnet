@@ -610,16 +610,26 @@ class BaseValidatorNeuron(BaseNeuron):
         write_timestamp(time.time())
 
 
-    def load_state(self):        
-        state = np.load(self.config.neuron.full_path + "/state.npz")
-        self.step = state["step"]
-        self.scores = state["scores"]
-        self.hotkeys = state["hotkeys"]
-           
-        ts = read_timestamp()
-        if not ts:
-            bt.logging.error("NO STATE FOUND - first step")
-        else:
-            bt.logging.info(f"Last state loaded at {ts}")
+    def load_state(self):
+        try:
+            if not os.path.exists(self.config.neuron.full_path + "/state.npz"):
+                bt.logging.info("No state found - initializing first step")
+                self.step = 0
+                return
+
+            state = np.load(self.config.neuron.full_path + "/state.npz", allow_pickle=True)
+            self.step = int(state["step"])
+            self.scores = state["scores"]
+            self.hotkeys = state["hotkeys"]
+            
+            ts = read_timestamp()
+            if ts:
+                bt.logging.info(f"ts State last write from {ts}")
+            else:
+                bt.logging.warning("No timestamp found for loaded state")
+                
+        except Exception as e:
+            bt.logging.error(f"Failed to load state: {e}")
+            self.step = 0
 
 

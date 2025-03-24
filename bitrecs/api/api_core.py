@@ -20,8 +20,8 @@ def get_client_ip(request: Request) -> str:
         forwarded_for = request.headers["x-forwarded-for"].strip()
         ips = [ip.strip() for ip in forwarded_for.split(",")]
         if ips:
-            # Get the last IP in the list (the client IP)
-            return ips[-1]
+            # Get the first IP in the list (the original client IP)
+            return ips[0]
 
     if request.client:
         return str(request.client.host)

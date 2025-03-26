@@ -1,36 +1,85 @@
 import os
 os.environ["NEST_ASYNCIO"] = "0"
+import pytest
+import sys
 import json
 import secrets
 import datetime
+from pathlib import Path
 from random import SystemRandom
+safe_random = SystemRandom()
 from datetime import datetime
 from bitrecs.protocol import BitrecsRequest
-safe_random = SystemRandom()
 from dataclasses import asdict, dataclass
 from typing import List, Optional, Set
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
+from bitrecs.utils.distance import (
+calculate_jaccard_distance, 
+ select_most_similar_bitrecs, 
+ select_most_similar_bitrecs_threshold, 
+ select_most_similar_bitrecs_threshold2, 
+ select_most_similar_sets
+)
 from dotenv import load_dotenv
 load_dotenv()
 
-
 LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
-OLLAMA_MODEL = "mistral-nemo"
+WARMUP_OLLAMA_MODEL = "mistral-nemo"
 
 #MODEL_BATTERY = ["mistral-nemo", "phi4", "qwen2.5:14b"]
-MODEL_BATTERY = ["mistral-nemo", "llama3.1", "phi4", "gemma3:12b", "qwen2.5:14b"]
+#MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b", "llama3.1" ]
+MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b" ]
+
 #MODEL_BATTERY = ["llama3.1:70b", "qwen2.5:32b", "gemma3:27b", "nemotron:latest"]
+#MODEL_BATTERY = ["qwen2.5:32b", "gemma3:27b", "nemotron:latest", "phi4"]
 
+#3/26/2025  7 passed, 1 warning in 172.75s (0:02:52) 
+#3/26/2025  7 passed, 1 warning in 145.10s
+#"deepseek/deepseek-chat-v3-0324:free"
 
-@dataclass
+CLOUD_BATTERY = ["deepseek/deepseek-chat-v3-0324",
+                 "amazon/nova-lite-v1", "google/gemini-flash-1.5-8b",
+                 "x-ai/grok-2-1212", "openai/o1-mini-2024-09-12", "anthropic/claude-2.1",
+                 "google/gemini-2.0-flash-001"]
+
+#@dataclass
 class TestConfig:
     similarity_threshold: float = 0.33
     top_n: int = 2
     num_recs: int = 6
     real_set_count: int = len(MODEL_BATTERY)
     fake_set_count: int = 9
+
+
+@pytest.fixture(autouse=True)
+def test_logger(request):
+    """Fixture to capture print statements and write to timestamped log file."""    
+    log_dir = Path("./tests", "test_logs")
+    log_dir.mkdir(exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    test_name = request.node.name
+    log_file = log_dir / f"{test_name}_{timestamp}.log"
+    with open(log_file, 'w') as f:        
+        f.write(f"=== Test Started: {test_name} at {timestamp} ===\n\n")                
+        original_stdout = sys.stdout
+        class DualOutput:
+            def write(self, text):
+                original_stdout.write(text)
+                f.write(text)
+                f.flush()
+            
+            def flush(self):
+                original_stdout.flush()
+                f.flush()
+        
+        # Replace stdout with our custom output
+        sys.stdout = DualOutput()        
+        yield        
+        
+        sys.stdout = original_stdout
+        f.write(f"\n=== Test Completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
 
 
 def product_woo():
@@ -46,218 +95,88 @@ def product_shopify():
     return products
 
 def product_1k():
-    with open("./tests/data/amazon/office/amazon_office_sample_1000.json", "r") as f:
+    catalog = "./tests/data/amazon/office/amazon_office_sample_1000.json"
+    #catalog = "./tests/data/amazon/fashion/amazon_fashion_sample_1000.json"
+    with open(catalog, "r") as f:
         data = f.read()
     products = ProductFactory.convert(data, CatalogProvider.AMAZON)
     return products
 
 def product_5k():
-    with open("./tests/data/amazon/office/amazon_office_sample_5000.json", "r") as f:
-        data = f.read()    
+    catalog = "./tests/data/amazon/office/amazon_office_sample_5000.json"
+    #catalog = "./tests/data/amazon/fashion/amazon_fashion_sample_5000.json"
+    with open(catalog, "r") as f:
+        data = f.read()
     products = ProductFactory.convert(data, CatalogProvider.AMAZON)
     return products
 
-def product_20k():    
-    with open("./tests/data/amazon/office/amazon_office_sample_20000.json", "r") as f:
-        data = f.read()    
+def product_20k():   
+    catalog = "./tests/data/amazon/office/amazon_office_sample_20000.json" 
+    #catalog = "./tests/data/amazon/fashion/amazon_fashion_sample_20000.json"
+    with open(catalog, "r") as f:
+        data = f.read()
     products = ProductFactory.convert(data, CatalogProvider.AMAZON)
     return products
 
-def calculate_jaccard_distance(set1: Set, set2: Set) -> float:  
-    if not set1 or not set2:
-        return 1.0        
-    intersection = len(set1.intersection(set2))
-    union = len(set1.union(set2))
-    if union == 0:
-        return 1.0        
-    similarity = intersection / union
-    distance = 1 - similarity
-    return distance
-
-def select_most_similar_sets(rec_sets: List[Set[str]], top_n: int = 2) -> List[int]:
-    """
-    Select the top N most similar sets based on Jaccard distances.
-    Returns indices of the most similar sets.
+#     rec_sets: List[BitrecsRequest], 
+#     top_n: int = 2, 
+#     similarity_threshold: float = 0.51
+# ) -> Optional[List[BitrecsRequest]]:
+#     """
+#     Select most similar BitrecsRequest objects meeting similarity threshold.
+#     Returns None if no pairs meet threshold.
     
-    Args:
-        rec_sets: List of sets to compare
-        top_n: Number of sets to return (default 2)
-    Returns:
-        List of indices for the most similar sets
-    """
-    if len(rec_sets) < 2:
-        return list(range(len(rec_sets)))
-    
-    # Calculate average distance for each set to all others
-    avg_distances = []
-    for i, set1 in enumerate(rec_sets):
-        distances = []
-        for j, set2 in enumerate(rec_sets):
-            if i != j:
-                dist = calculate_jaccard_distance(set1, set2)
-                distances.append(dist)
-        avg_distances.append((i, sum(distances) / len(distances)))
-    
-    # Sort by average distance (ascending) and get top N
-    sorted_sets = sorted(avg_distances, key=lambda x: x[1])
-    selected_indices = [idx for idx, _ in sorted_sets[:top_n]]
-    
-    return selected_indices
-
-def select_most_similar_sets_from_bitrecs2(rec_sets: List[BitrecsRequest], top_n: int = 2) -> List[BitrecsRequest]:
-    """
-    Select most similar BitrecsRequest objects based on their SKU recommendations.
-    
-    Args:
-        rec_sets: List of BitrecsRequest objects
-        top_n: Number of similar sets to return
-    Returns:
-        List of most similar BitrecsRequest objects
-    """
-    if len(rec_sets) < 2:
-        return rec_sets
+#     Args:
+#         rec_sets: List of BitrecsRequest objects
+#         top_n: Number of similar sets to return
+#         similarity_threshold: Minimum similarity required
+#     Returns:
+#         List of similar BitrecsRequest objects or None if no matches
+#     """
+#     if len(rec_sets) < 2:
+#         return None
         
-    # Convert results to sets of SKUs
-    sku_sets = [set(r['sku'] for r in req.results) for req in rec_sets]
+#     # Calculate similarities between all pairs
+#     similar_pairs = []
+#     for i in range(len(rec_sets)):
+#         set1 = set(r['sku'] for r in rec_sets[i].results)
+#         for j in range(i + 1, len(rec_sets)):
+#             set2 = set(r['sku'] for r in rec_sets[j].results)
+            
+#             # Calculate Jaccard similarity
+#             intersection = len(set1 & set2)
+#             union = len(set1 | set2)
+#             similarity = intersection / union if union > 0 else 0.0
+            
+#             if similarity >= similarity_threshold:
+#                 similar_pairs.append((i, j, similarity))
     
-    # Get indices of most similar sets
-    sim = select_most_similar_sets(sku_sets, top_n)
-    
-    # Return the corresponding BitrecsRequest objects
-    return [rec_sets[i] for i in sim]
-
-def select_most_similar_sets_from_bitrecs3(rec_sets: List[BitrecsRequest], top_n: int = 2, 
-                                          similarity_threshold: float = 0.51) -> List[BitrecsRequest]:
-    """
-    Self-contained function to select most similar BitrecsRequest objects.
-    Includes internal Jaccard calculation and similarity checks.
-    
-    Args:
-        rec_sets: List of BitrecsRequest objects
-        top_n: Number of similar sets to return (default 2)
-        similarity_threshold: Minimum similarity required (default 0.51)
-    Returns:
-        List of most similar BitrecsRequest objects meeting threshold
-    """
-    if len(rec_sets) < 2:
-        return rec_sets
-
-    def calc_jaccard_similarity(set1: Set[str], set2: Set[str]) -> float:
-        if not set1 or not set2:
-            return 0.0
-        intersection = len(set1.intersection(set2))
-        union = len(set1.union(set2))
-        return intersection / union if union > 0 else 0.0
-
-    # Convert BitrecsRequests to sets of SKUs
-    sku_sets = []
-    for req in rec_sets:
-        sku_set = set(r['sku'] for r in req.results)
-        sku_sets.append((sku_set, req))  # Keep original request paired with its SKUs
-
-    # Calculate all pairwise similarities
-    pairs = []
-    for i in range(len(sku_sets)):
-        for j in range(i + 1, len(sku_sets)):
-            similarity = calc_jaccard_similarity(sku_sets[i][0], sku_sets[j][0])
-            if similarity >= similarity_threshold:
-                pairs.append((i, j, similarity))
-
-    # Sort pairs by similarity (highest first)
-    pairs.sort(key=lambda x: x[2], reverse=True)
-
-    if not pairs:
-        print(f"No pairs found meeting threshold {similarity_threshold}")
-        return []
-
-    # Select best pairs meeting criteria
-    selected = set()
-    selected_requests = []
-    
-    for i, j, sim in pairs:
-        # Add both requests from the pair if we haven't hit top_n
-        if len(selected_requests) < top_n:
-            if i not in selected:
-                selected.add(i)
-                selected_requests.append(rec_sets[i])
-            if len(selected_requests) < top_n and j not in selected:
-                selected.add(j)
-                selected_requests.append(rec_sets[j])
-
-    # Print similarity analysis
-    print(f"\nSimilarity Analysis:")
-    print(f"Found {len(selected_requests)} sets meeting threshold {similarity_threshold}")
-    for idx, req in enumerate(selected_requests):
-        model = req.models_used[0] if req.models_used else "unknown"
-        if idx < len(pairs):
-            print(f"Set {idx}: Model {model} (similarity: {pairs[idx][2]:.3f})")
-        else:
-            print(f"Set {idx}: Model {model}")
-
-    return selected_requests[:top_n]
-
-def select_most_similar_sets_from_bitrecs4(
-    rec_sets: List[BitrecsRequest], 
-    top_n: int = 2, 
-    similarity_threshold: float = 0.51
-) -> Optional[List[BitrecsRequest]]:
-    """
-    Select most similar BitrecsRequest objects meeting similarity threshold.
-    Returns None if no pairs meet threshold.
-    
-    Args:
-        rec_sets: List of BitrecsRequest objects
-        top_n: Number of similar sets to return
-        similarity_threshold: Minimum similarity required
-    Returns:
-        List of similar BitrecsRequest objects or None if no matches
-    """
-    if len(rec_sets) < 2:
-        return None
+#     if not similar_pairs:
+#         print(f"No pairs found above threshold {similarity_threshold}")
+#         return None
         
-    # Calculate similarities between all pairs
-    similar_pairs = []
-    for i in range(len(rec_sets)):
-        set1 = set(r['sku'] for r in rec_sets[i].results)
-        for j in range(i + 1, len(rec_sets)):
-            set2 = set(r['sku'] for r in rec_sets[j].results)
-            
-            # Calculate Jaccard similarity
-            intersection = len(set1 & set2)
-            union = len(set1 | set2)
-            similarity = intersection / union if union > 0 else 0.0
-            
-            if similarity >= similarity_threshold:
-                similar_pairs.append((i, j, similarity))
+#     # Sort by similarity and get best pairs
+#     similar_pairs.sort(key=lambda x: x[2], reverse=True)
+#     selected = set()
+#     result = []
     
-    if not similar_pairs:
-        print(f"No pairs found above threshold {similarity_threshold}")
-        return None
-        
-    # Sort by similarity and get best pairs
-    similar_pairs.sort(key=lambda x: x[2], reverse=True)
-    selected = set()
-    result = []
-    
-    # Take best pairs until we have top_n requests
-    for i, j, sim in similar_pairs:
-        if len(result) >= top_n:
-            break
-        if i not in selected:
-            selected.add(i)
-            result.append(rec_sets[i])
-        if len(result) < top_n and j not in selected:
-            selected.add(j)
-            result.append(rec_sets[j])
+#     # Take best pairs until we have top_n requests
+#     for i, j, sim in similar_pairs:
+#         if len(result) >= top_n:
+#             break
+#         if i not in selected:
+#             selected.add(i)
+#             result.append(rec_sets[i])
+#         if len(result) < top_n and j not in selected:
+#             selected.add(j)
+#             result.append(rec_sets[j])
             
-    return result if result else None
+#     return result if result else None
 
 
 def get_rec(products, sku, model=None, num_recs=5) -> list:
-    if not sku:
-        raise ValueError("sku is required")
-    
-    #products = product_5k()
+    if not sku or not products:
+        raise ValueError("sku and products are required")
     products = ProductFactory.dedupe(products)
     user_prompt = sku    
     debug_prompts = False
@@ -274,7 +193,7 @@ def get_rec(products, sku, model=None, num_recs=5) -> list:
     prompt = factory.generate_prompt()    
     if not model:
         model = safe_random.choice(MODEL_BATTERY)
-    print(f"Model:\033[32m {model} \033[0m")
+    print(f"Local Model:\033[32m {model} \033[0m")
 
     llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
                                  model=model, 
@@ -294,9 +213,12 @@ def get_rec_fake(sku, num_recs=5) -> list:
     return result
 
 
-def mock_br_request(products: List[Product], group_id: str, sku: str, model: str, num_recs: int) -> Optional[BitrecsRequest]:
-    assert num_recs > 0 and num_recs <= 20
-    #products = ProductFactory.dedupe(product_20k())
+def mock_br_request(products: List[Product], 
+                    group_id: str, 
+                    sku: str, 
+                    model: str, 
+                    num_recs: int) -> Optional[BitrecsRequest]:
+    assert num_recs > 0 and num_recs <= 20   
     
     user_prompt = sku    
     debug_prompts = False
@@ -337,32 +259,60 @@ def mock_br_request(products: List[Product], group_id: str, sku: str, model: str
     return m
 
 
-def recommender_presenter2(original_sku: str, recs: List[Set[str]]) -> str:    
-    result = f"Target SKU: \033[32m {original_sku} \033[0m\n"
-    target_product_name = product_name_by_sku_trimmed(original_sku, 200)
-    result += f"Target Product:\033[32m{target_product_name} \033[0m\n"
-    result += "------------------------------------------------------------\n"
-    seen_names = set()
-    for i, rec_set in enumerate(recs):
-        for rec in rec_set:        
-            name = product_name_by_sku_trimmed(rec, 90)
-            if name in seen_names:
-                result += f"\033[32m{rec} - {name}\033[0m\n"
-                continue
-            seen_names.add(name)
-            result += f"{rec} - {name}\n"
-    return result
+def mock_br_request_cloud(products: List[Product], 
+                    group_id: str, 
+                    sku: str, 
+                    model: str, 
+                    num_recs: int) -> Optional[BitrecsRequest]:
+    assert num_recs > 0 and num_recs <= 20   
+    
+    user_prompt = sku    
+    debug_prompts = False
+    match = [products for products in products if products.sku == user_prompt][0]
+    print(match)
+
+    context = json.dumps([asdict(products) for products in products])
+    factory = PromptFactory(sku=user_prompt, 
+                            context=context, 
+                            num_recs=num_recs, 
+                            load_catalog=False, 
+                            debug=debug_prompts)
+    
+    prompt = factory.generate_prompt()
+
+    if not model:
+        model = safe_random.choice(CLOUD_BATTERY)
+    print(f"Cloud Model:\033[32m {model} \033[0m")
+
+    llm_response = LLMFactory.query_llm(server=LLM.OPEN_ROUTER,
+                                 model=model, 
+                                 system_prompt="You are a helpful assistant", 
+                                 temp=0.0, user_prompt=prompt)    
+    parsed_recs = PromptFactory.tryparse_llm(llm_response) 
+    assert len(parsed_recs) == num_recs
+
+    m = BitrecsRequest(
+        created_at=datetime.now().isoformat(),
+        user="test_user",
+        num_results=num_recs,
+        query=sku,
+        context="[]",
+        site_key=group_id,
+        results=parsed_recs,
+        models_used=[model],
+        miner_uid=str(safe_random.randint(10, 1000)),
+        miner_hotkey=secrets.token_hex(16)
+    )
+    return m
 
 
 def recommender_presenter(original_sku: str, recs: List[Set[str]]) -> str:    
     result = f"Target SKU: \033[32m {original_sku} \033[0m\n"
     target_product_name = product_name_by_sku_trimmed(original_sku, 200)
     result += f"Target Product:\033[32m{target_product_name} \033[0m\n"
-    result += "------------------------------------------------------------\n"
-    
+    result += "------------------------------------------------------------\n"    
     # Track matches with simple counter
-    matches = {}  # name -> count
-    
+    matches = {}  # name -> count    
     # First pass - count matches
     for rec_set in recs:
         for rec in rec_set:
@@ -393,24 +343,86 @@ def recommender_presenter(original_sku: str, recs: List[Set[str]]) -> str:
 def product_name_by_sku_trimmed(sku: str, take_length: int = 50, products = None) -> str:
     try:
         if not products:
-            products = product_20k()
-        #products = ProductFactory.dedupe(products)
+            products = product_20k()        
         selected_product = [p for p in products if p.sku == sku][0]
         name = selected_product.name
         if len(name) > take_length:
             name = name[:take_length] + "..."
-        return name
-        
+        return name        
     except Exception as e:
         print(e)
-        return f"Error loading sku {sku}"
+        return f"Error loading sku {sku}"    
+
+
+def display_rec_matrix(rec_sets: List[Set[str]], models_used: List[str], top_n: int = 2):
+    print(f"total of {len(rec_sets)} sets")
+    config = TestConfig()
+    # Calculate Jaccard distances between all pairs with aligned columns
+    for i in range(len(rec_sets)):
+        row = f"{i:4d}"
+        for j in range(len(rec_sets)):
+            if j < i:
+                distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
+                row += f"{distance:7.3f}"
+            else:
+                row += "      -"
+        print(row)
     
+    print("\nNote: Lower distances between sets (real) vs (random)")
+    print("      indicate better recommendation quality")
+    print("=" * 40)
+
+    # Verify all distances are valid
+    for i in range(len(rec_sets)):
+        for j in range(i + 1, len(rec_sets)):
+            distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
+            #assert 0 <= distance <= 1
+
+    print("\nSelecting most similar sets:")
+    most_similar = select_most_similar_sets(rec_sets, top_n=config.top_n)
+    print(f"Most similar set indices: {most_similar}")
+    print("Selected sets:")
+    for idx in most_similar:
+        model_used = models_used[idx]
+        print(f"Set {idx}: {sorted(list(rec_sets[idx]))} - \033[32m {model_used} \033[0m")
+
+    # Verify that the most similar sets are the real ones
+    # for idx in most_similar:
+    #     assert idx <= config.real_set_count
+    
+    print("\nVerifying recommendation quality:")
+    print("=" * 60)
+    
+    # Check that all selected sets are from real recommendations
+    for idx in most_similar:
+        if idx >= config.real_set_count:
+            print(f"\033[33m WARNING: Set {idx} is a random set, not a real recommendation! \033[0m")
+        #assert idx < config.real_set_count, f"Set {idx} is not from real recommendations (idx >= {config.real_set_count})"
+    
+    similar_set_distances = []
+    for i in range(len(most_similar)):
+        for j in range(i + 1, len(most_similar)):
+            dist = calculate_jaccard_distance(rec_sets[most_similar[i]], rec_sets[most_similar[j]])
+            similar_set_distances.append(dist)
+    
+    avg_similarity = 1 - (sum(similar_set_distances) / len(similar_set_distances))
+    print(f"Average similarity between selected sets: {avg_similarity:.3f}")
+    print(f"Average distance between selected sets: {1-avg_similarity:.3f}")    
+    
+    assert avg_similarity >= config.similarity_threshold, \
+        f"Selected sets have low similarity ({avg_similarity:.3f} < {config.similarity_threshold})"
+    
+    print("\nQuality check passed:")
+    print(f"✓ All selected sets are from real recommendations")
+    print(f"✓ Average similarity above threshold ({avg_similarity:.3f} >= {config.similarity_threshold})")
+    print("=" * 60)  
 
 
 
 def test_warmup():
+    print(f"Model battery: {MODEL_BATTERY}")
     prompt = "Tell me a joke"
-    model = OLLAMA_MODEL
+    model = WARMUP_OLLAMA_MODEL
     llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
                                  model=model, 
                                  system_prompt="You are a helpful assistant", 
@@ -448,6 +460,7 @@ def test_local_llm_bitrecs_mock_ok():
     assert len(mock_request.models_used) == 1
     assert mock_request.miner_uid is not None
     assert mock_request.miner_hotkey is not None
+    assert mock_request.site_key == group_id
 
 
 
@@ -457,9 +470,12 @@ def test_local_llm_base_config_jaccard():
     products = product_5k()
     products = ProductFactory.dedupe(products)
     product = safe_random.choice(products)
+    product_name = product_name_by_sku_trimmed(product.sku, 500)
     
     print("\n=== Recommendation Set Analysis ===")
-    print(f"Testing recommendations for product SKU: {product.sku}")
+    print(f"This test is using {len(products)} products ")
+    print(f"Testing recommendations for product SKU: {product.sku}")  
+    print(f"Product Name: \033[32m{product_name} \033[0m") 
         
     rec_sets = []
     model_recs = {}
@@ -467,7 +483,7 @@ def test_local_llm_base_config_jaccard():
     
     print(f"Number of recommendations: {config.num_recs}")
     print(f"Number of real sets: {config.real_set_count}")
-    print(f"Number of fake sets: {config.fake_set_count}")    
+    print(f"Number of fake sets: {config.fake_set_count}")
     
     print("\nGenerating real recommendations...")
     for i in range(config.real_set_count):
@@ -580,6 +596,7 @@ def test_local_llm_raw_1k_jaccard():
     rec_tracking : List[Set] = []
     
     print(f"\n=== Recommendation Analysis ===")
+    print(f"This test is using {len(products)} products ")
     print(f"SKU: {sku}")
     print(f"Recommendations per set: {config.num_recs}")    
     
@@ -591,8 +608,7 @@ def test_local_llm_raw_1k_jaccard():
         rec_tracking.append((fake_set, model_name))
         print(f"Set (Random) {model_name}: {sorted(list(fake_set))}")    
     
-    print("\nGenerating model recommendations...")
-    #battery = MODEL_BATTERY[:2]
+    print("\nGenerating model recommendations...")    
     battery = MODEL_BATTERY    
     safe_random.shuffle(battery)
 
@@ -630,8 +646,10 @@ def test_local_llm_bitrecs_5k_jaccard():
     products = product_5k()
     products = ProductFactory.dedupe(products)
     sku = safe_random.choice(products).sku
-    print(f"Group ID: {group_id}")
-    print(f"SKU: {sku}")
+    
+    print(f"This test is using {len(products)} products ")
+    # print(f"Group ID: {group_id}")
+    # print(f"SKU: {sku}")
     product_name = product_name_by_sku_trimmed(sku, 500)
     print(f"Target Product:\033[32m{product_name} \033[0m")
 
@@ -694,9 +712,10 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
     sku = selected_product.sku
     
     config = TestConfig()
-    rec_requests = []  # List of BitrecsRequest objects
+    rec_requests : List[BitrecsRequest] = []
     
-    print(f"\n=== Protocol Recommendation Analysis ===")
+    print(f"\n=== Protocol Recommendation Analysis ===")    
+    print(f"This test is using {len(products)} products ")
     print(f"Original Product:")
     print(f"SKU: \033[32m {sku} \033[0m")
     print(f"Name: \033[32m {selected_product.name} \033[0m")
@@ -721,31 +740,34 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
         rec_requests.append(req)
         print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
     
-    # Generate real recommendations
-    print("\nGenerating model recommendations...")
-    battery = MODEL_BATTERY[:2]  # Using first 2 models
+    print("\nGenerating model recommendations...")    
+    battery = MODEL_BATTERY
     for model in battery:
         req = mock_br_request(products, group_id, sku, model, config.num_recs)
         rec_requests.append(req)
         print(f"Set {model}: {[r['sku'] for r in req.results]}")
 
-
     # No threshold
-    most_similar = select_most_similar_sets_from_bitrecs2(rec_requests, top_n=config.top_n)
+    most_similar = select_most_similar_bitrecs(rec_requests, top_n=config.top_n)
     assert most_similar is not None
     assert len(most_similar) == config.top_n
 
-    # 33% with threshold
+    # 10% with threshold
     low_threshold = 0.10
-    most_similar2 = select_most_similar_sets_from_bitrecs3(rec_requests, 
+    most_similar2 = select_most_similar_bitrecs_threshold(rec_requests, 
                                                            top_n=config.top_n, 
                                                            similarity_threshold=low_threshold)  
 
-    # 51% or null
-    med_threshold = 0.51
-    most_similar3 = select_most_similar_sets_from_bitrecs4(rec_requests, 
+    # 33% or null
+    med_threshold = 0.33
+    most_similar3 = select_most_similar_bitrecs_threshold2(rec_requests, 
                                                            top_n=config.top_n, 
                                                            similarity_threshold=med_threshold)
+    
+    good_threshold = 0.51
+    most_similar4 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=good_threshold)
  
     print("\nFinished generating rec sets") 
     print("Selected sets:")
@@ -753,8 +775,9 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
         model = req.models_used[0]
         skus = [r['sku'] for r in req.results]
         print(f"Model {model}:")
-        print(f"  SKUs: {sorted(skus)}")      
+        print(f"  SKUs: {sorted(skus)}")
 
+    print(f"\033[1;32m No Threshold \033[0m")
     selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
     report = recommender_presenter(sku, selected_sets)
     print(report)
@@ -768,8 +791,146 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
             print(f"  SKUs: {sorted(skus)}")      
             
         selected_sets2 = [set(r['sku'] for r in req.results) for req in most_similar2]
-        report = recommender_presenter(sku, selected_sets2)
-        print(f"Threshold {low_threshold}")
+        report = recommender_presenter(sku, selected_sets2)        
+        print(f"\033[1;32m Low Threshold {low_threshold} \033[0m")
+        print(report)
+    else:        
+        print(f"\033[31m No sets found meeting threshold {low_threshold} \033[0m")
+
+
+    if most_similar3:
+        print("Selected sets:")
+        for req in most_similar3:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets3 = [set(r['sku'] for r in req.results) for req in most_similar3]
+        report = recommender_presenter(sku, selected_sets3)
+        print(f"\033[1;32m Medium Threshold {med_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\033[31m No sets found meeting threshold {med_threshold} \033[0m")
+
+    if most_similar4:
+        print("Selected sets:")
+        for req in most_similar4:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets4 = [set(r['sku'] for r in req.results) for req in most_similar4]
+        report = recommender_presenter(sku, selected_sets4)
+        print(f"\033[1;32m Good Threshold {good_threshold} \033[0m")
+        print(report)
+    else:        
+        print(f"\033[31m No sets for threshold (>51%) {len(selected_sets)} \033[0m")
+
+
+
+
+
+def test_cloud_llm_bitrecs_protocol_5k_jaccard():
+    """Test cloud recommendation sets using BitrecsRequest protocol"""
+    group_id = secrets.token_hex(16)
+    products = product_1k()
+    #products = product_5k()
+    products = ProductFactory.dedupe(products)
+    selected_product = safe_random.choice(products)
+    sku = selected_product.sku
+    
+    config = TestConfig()
+    rec_requests : List[BitrecsRequest] = []
+    
+    print(f"\n=== Protocol Recommendation Analysis ===")    
+    print(f"This test is using {len(products)} products ")
+    print(f"Original Product:")
+    print(f"SKU: \033[32m {sku} \033[0m")
+    print(f"Name: \033[32m {selected_product.name} \033[0m")
+    print(f"Price: ${selected_product.price}")
+    
+    # Generate fake recommendations first
+    print("\nGenerating random recommendations...")
+    for i in range(config.fake_set_count):
+        fake_recs = get_rec_fake(sku, config.num_recs)
+        req = BitrecsRequest(
+            created_at=datetime.now().isoformat(),
+            user="test_user",
+            num_results=config.num_recs,
+            query=sku,
+            context="[]",
+            site_key=group_id,
+            results=[{"sku": r.sku} for r in fake_recs],
+            models_used=[f"random-{i}"],
+            miner_uid=str(safe_random.randint(10, 100)),
+            miner_hotkey=secrets.token_hex(16)
+        )
+        rec_requests.append(req)
+        print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
+    
+    print("\nGenerating model recommendations...")
+    models_used = []    
+    battery = CLOUD_BATTERY
+    for model in battery:
+        #req = mock_br_request(products, group_id, sku, model, config.num_recs)
+        try:
+            
+            req = mock_br_request_cloud(products, group_id, sku, model, config.num_recs)
+            rec_requests.append(req)
+            print(f"Set {model}: {[r['sku'] for r in req.results]}")
+            models_used.append(model)
+
+        except Exception as e:
+            print(f"Error with model {model}: {e}")
+            continue
+        
+
+    # No threshold
+    most_similar = select_most_similar_bitrecs(rec_requests, top_n=config.top_n)
+    assert most_similar is not None
+    assert len(most_similar) == config.top_n
+
+    # 10% with threshold
+    low_threshold = 0.10
+    most_similar2 = select_most_similar_bitrecs_threshold(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=low_threshold)  
+
+    # 33% or null
+    med_threshold = 0.33
+    most_similar3 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=med_threshold)
+    
+    good_threshold = 0.51
+    most_similar4 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=good_threshold)
+ 
+    print("\nFinished generating rec sets") 
+    print("Selected sets:")
+    for req in most_similar:
+        model = req.models_used[0]
+        skus = [r['sku'] for r in req.results]
+        print(f"Model {model}:")
+        print(f"  SKUs: {sorted(skus)}")
+
+    print(f"\033[1;32m No Threshold \033[0m")
+    selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
+    report = recommender_presenter(sku, selected_sets)
+    print(report)
+
+    if most_similar2:
+        print("Selected sets:")
+        for req in most_similar2:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")      
+            
+        selected_sets2 = [set(r['sku'] for r in req.results) for req in most_similar2]
+        report = recommender_presenter(sku, selected_sets2)        
+        print(f"\033[1;32m Low Threshold {low_threshold} \033[0m")
         print(report)
     else:
         print(f"No sets found meeting threshold {low_threshold}")
@@ -783,9 +944,24 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
             print(f"  SKUs: {sorted(skus)}")
         selected_sets3 = [set(r['sku'] for r in req.results) for req in most_similar3]
         report = recommender_presenter(sku, selected_sets3)
-        print(f"\033[1;32m Threshold {med_threshold} \033[0m")
+        print(f"\033[1;32m Medium Threshold {med_threshold} \033[0m")
         print(report)
     else:
         print(f"\033[31m Noo sets found meeting threshold {med_threshold} \033[0m")
 
-  
+    if most_similar4:
+        print("Selected sets:")
+        for req in most_similar4:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets4 = [set(r['sku'] for r in req.results) for req in most_similar4]
+        report = recommender_presenter(sku, selected_sets4)
+        print(f"\033[1;32m Good Threshold {good_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\nNo results for threshold (>51%) out of {len(selected_sets)} sets ")
+
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
+    display_rec_matrix(rec_sets, models_used, top_n=config.top_n)

@@ -1,4 +1,5 @@
 import os
+os.environ["NEST_ASYNCIO"] = "0"
 import json
 import pytest
 from dataclasses import asdict
@@ -11,7 +12,6 @@ from bitrecs.llms.prompt_factory import PromptFactory
 from dotenv import load_dotenv
 load_dotenv()
 
-os.environ["NEST_ASYNCIO"] = "0"
 
 LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
 

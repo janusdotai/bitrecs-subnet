@@ -116,8 +116,8 @@ class PromptFactory:
         # FINAL INSTRUCTIONS
         
         1) Load <persona> and <context> into your memory.
-        2) Observe the user <query> that is a 'sku'. Find the matching product from the <context> and memorize its 'name' and 'price'.
-        3) Find {} unique products in the <context> that you think would go well with <query> and copy them to the return array.       
+        2) Observe the user <query> - this is a 'sku'. Find the matching master product from the <context> and memorize its 'name' and 'price'.
+        3) Find {} unique products in the <context> that you think would go well with master product <query> and copy them to the return array.
         4) Never recommend the same product as the one in the <query> in your final recommendations.
         5) The order of the recommendations is important. The first recommendation should be the most profitable and relevant to the <query>.
         6) Important information is in the 'name' field. Use this information to make your recommendations.

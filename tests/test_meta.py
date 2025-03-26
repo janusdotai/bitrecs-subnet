@@ -1,10 +1,6 @@
-import pytest
-import os
-from pydantic import BaseModel
 from bitrecs.utils.version import LocalMetadata
 from bitrecs import __spec_version__ as spec_version
 from bitrecs import __version__ as this_version
-
 
 
 def test_basic_meta_init_state_ok():

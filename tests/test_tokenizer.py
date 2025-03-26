@@ -1,13 +1,8 @@
-import os
 import json
-import time
-import pytest
 from dataclasses import asdict
 from random import SystemRandom
 safe_random = SystemRandom()
-from typing import Counter
-from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
-from bitrecs.llms.factory import LLM, LLMFactory
+from bitrecs.commerce.product import CatalogProvider, ProductFactory
 from bitrecs.llms.prompt_factory import PromptFactory
 from dotenv import load_dotenv
 load_dotenv()

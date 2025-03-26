@@ -1,4 +1,5 @@
 import os
+os.environ["NEST_ASYNCIO"] = "0"
 import json
 import pytest
 from dataclasses import asdict
@@ -12,7 +13,6 @@ from tests.utils import write_prompt_to_file
 from dotenv import load_dotenv
 load_dotenv()
 
-os.environ["NEST_ASYNCIO"] = "0"
 
 LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
 

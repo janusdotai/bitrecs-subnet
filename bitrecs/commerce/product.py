@@ -11,13 +11,13 @@ from pydantic import BaseModel
 from dataclasses import dataclass
 
 
-
 class CatalogProvider(Enum):
     BITRECS = 0
     SHOPIFY = 1
     AMAZON = 2
     WOOCOMMERCE = 3
     BIGCOMMERCE = 4
+    WALMART = 5
 
 
 @dataclass
@@ -28,7 +28,6 @@ class Product:
     
 
 class ProductFactory:
-
 
     @staticmethod
     def tryload_catalog(file_path: str, max_rows=100_000) -> list:
@@ -59,96 +58,15 @@ class ProductFactory:
             float_cols = df.select_dtypes(include=['float64']).columns
             df[float_cols] = df[float_cols].astype(object)
             df.fillna('', inplace=True)
+            df = df.sort_values(by=['sku', 'name', 'price'], 
+                              ascending=[True, True, True],
+                              na_position='last')
 
             df = df.head(max_rows)
             df = df.to_dict(orient='records')
             return df
         except Exception as e:
             bt.logging.error(str(e))
-            return []
-        
-        
-    @staticmethod
-    def tryload_catalog_shopify(file_path: str, max_rows=100_000) -> list:
-        """
-        Try to load a Shopify catalog into a normalized list
-        *this will squash variants down 
-        
-        :param file_path: Path to the Shopify CSV file
-        :param max_rows: Maximum number of rows to process
-        :return: List of dictionaries with 'sku', 'name', 'price'
-        """
-        try:
-            if not os.path.exists(file_path):   
-                bt.logging.error(f"File not found: {file_path}")
-                raise FileNotFoundError(f"File not found: {file_path}")
-            
-            df = pd.read_csv(file_path)
-            # Select relevant columns
-            columns = [
-                "Handle", "Title", "Variant SKU", "Variant Price", 
-                "Option1 Name", "Option1 Value", 
-                "Option2 Name", "Option2 Value", 
-                "Option3 Name", "Option3 Value", 
-                "Status"
-            ]
-            df = df[[c for c in columns if c in df.columns]]
-
-            # Rename columns for clarity
-            df = df.rename(columns={
-                'Handle': 'handle',
-                'Title': 'name',
-                'Variant SKU': 'sku',
-                'Variant Price': 'price',
-                'Option1 Name': 'option1_name',
-                'Option1 Value': 'option1_value',
-                'Option2 Name': 'option2_name',
-                'Option2 Value': 'option2_value',
-                'Option3 Name': 'option3_name',
-                'Option3 Value': 'option3_value'
-            })
-
-            # Clean and preprocess data
-            df['name'] = df['name'].fillna('').str.replace(r'<[^<>]*>', '', regex=True)
-            df['sku'] = df['sku'].astype(str).str.lstrip("'").replace('nan', '')  # Remove leading ' and invalid 'nan' values
-            
-            float_cols = df.select_dtypes(include=['float64']).columns
-            df[float_cols] = df[float_cols].astype(object)
-            df.fillna('', inplace=True)
-
-            # Fill empty names with the parent name grouped by 'handle'
-            parent_names = df.groupby('handle')['name'].first().to_dict()
-            df['name'] = df.apply(lambda row: parent_names.get(row['handle'], '') if row['name'] == '' else row['name'], axis=1)
-
-            # Remove rows without a SKU
-            df = df[df['sku'] != '']
-
-            # Limit rows for processing
-            df = df.head(max_rows)
-
-            # Convert to list of dictionaries
-            products = []
-            for _, row in df.iterrows():
-                product = {
-                    'handle': row['handle'],
-                    'name': row['name'],
-                    'sku': row['sku'],
-                    'price': row['price'],
-                    'variants': []
-                }
-
-                # Add variant details if available
-                for i in range(1, 4):
-                    option_name = row.get(f'option{i}_name', '').strip()
-                    option_value = row.get(f'option{i}_value', '').strip()
-                    if option_name and option_value:
-                        product['variants'].append({option_name: option_value})
-
-                products.append(product)
-
-            return products
-        except Exception as e:
-            print(f"Error loading catalog: {e}")
             return []
         
         
@@ -167,7 +85,10 @@ class ProductFactory:
                 thing = ProductFactory.tryload_catalog(file_path, max_rows)
                 return json.dumps(thing, indent=2)
             case CatalogProvider.SHOPIFY:
-                thing = ProductFactory.tryload_catalog_shopify(file_path, max_rows)
+                thing = ShopifyConverter.tryload_catalog_shopify(file_path, max_rows)                
+                return json.dumps(thing, indent=2)
+            case CatalogProvider.WALMART:
+                thing = WalmartConverter.tryload_catalog(file_path, max_rows)        
                 return json.dumps(thing, indent=2)
             case _:
                raise ValueError(f"Invalid provider: {provider}")
@@ -300,6 +221,8 @@ class ProductFactory:
                 return WoocommerceConverter().convert(context)
             case CatalogProvider.BIGCOMMERCE:
                 return BigcommerceConverter().convert(context)
+            case CatalogProvider.WALMART:
+                return WalmartConverter().convert(context)
             case _:
                 raise NotImplementedError("invalid provider")
 
@@ -397,7 +320,90 @@ class ShopifyConverter(BaseConverter):
             except Exception as e:
                 bt.logging.error(f"ShopifyConverter.convert Exception: {e}")
                 continue
-        return result    
+        return result
+
+    @staticmethod
+    def tryload_catalog_shopify(file_path: str, max_rows=100_000) -> list:
+        """
+        Try to load a Shopify catalog into a normalized list
+        *this will squash variants down 
+        
+        :param file_path: Path to the Shopify CSV file
+        :param max_rows: Maximum number of rows to process
+        :return: List of dictionaries with 'sku', 'name', 'price'
+        """
+        try:
+            if not os.path.exists(file_path):   
+                bt.logging.error(f"File not found: {file_path}")
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            df = pd.read_csv(file_path)
+            # Select relevant columns
+            columns = [
+                "Handle", "Title", "Variant SKU", "Variant Price", 
+                "Option1 Name", "Option1 Value", 
+                "Option2 Name", "Option2 Value", 
+                "Option3 Name", "Option3 Value", 
+                "Status"
+            ]
+            df = df[[c for c in columns if c in df.columns]]
+
+            # Rename columns for clarity
+            df = df.rename(columns={
+                'Handle': 'handle',
+                'Title': 'name',
+                'Variant SKU': 'sku',
+                'Variant Price': 'price',
+                'Option1 Name': 'option1_name',
+                'Option1 Value': 'option1_value',
+                'Option2 Name': 'option2_name',
+                'Option2 Value': 'option2_value',
+                'Option3 Name': 'option3_name',
+                'Option3 Value': 'option3_value'
+            })
+
+            # Clean and preprocess data
+            df['name'] = df['name'].fillna('').str.replace(r'<[^<>]*>', '', regex=True)
+            df['sku'] = df['sku'].astype(str).str.lstrip("'").replace('nan', '')  # Remove leading ' and invalid 'nan' values
+            
+            float_cols = df.select_dtypes(include=['float64']).columns
+            df[float_cols] = df[float_cols].astype(object)
+            df.fillna('', inplace=True)
+
+            # Fill empty names with the parent name grouped by 'handle'
+            parent_names = df.groupby('handle')['name'].first().to_dict()
+            df['name'] = df.apply(lambda row: parent_names.get(row['handle'], '') if row['name'] == '' else row['name'], axis=1)
+
+            # Remove rows without a SKU
+            df = df[df['sku'] != '']
+
+            # Limit rows for processing
+            df = df.head(max_rows)
+
+            # Convert to list of dictionaries
+            products = []
+            for _, row in df.iterrows():
+                product = {
+                    'handle': row['handle'],
+                    'name': row['name'],
+                    'sku': row['sku'],
+                    'price': row['price'],
+                    'variants': []
+                }
+
+                # Add variant details if available
+                for i in range(1, 4):
+                    option_name = row.get(f'option{i}_name', '').strip()
+                    option_value = row.get(f'option{i}_value', '').strip()
+                    if option_name and option_value:
+                        product['variants'].append({option_name: option_value})
+
+                products.append(product)
+
+            return products
+        except Exception as e:
+            print(f"Error loading catalog: {e}")
+            return []    
 
 
 class BitrecsConverter(BaseConverter):
@@ -424,11 +430,86 @@ class BitrecsConverter(BaseConverter):
                 bt.logging.error(f"GenericConverter.convert Exception: {e}")
                 continue
         return result
-     
-    
 
     
 class BigcommerceConverter(BaseConverter):
     
     def convert(self, context: str) -> list[Product]:
         raise NotImplementedError("Bigcommerce not implemented")
+    
+    
+class WalmartConverter(BaseConverter):    
+  
+    def convert(self, context: str) -> list[Product]:
+        """
+        converts from wallmart_30k_kaggle_trimmed.csv to Products
+
+        args:
+            context: str - wallmart_30k_kaggle_trimmed product export converted to json            
+
+        """
+        result : list[Product] = []
+        for p in json.loads(context):
+            try:
+                sku = p.get("sku")
+                name = p.get("name")
+                price = p.get("price", "0.00")             
+                if not sku or not name:
+                    continue
+                if price is None or price == 'None':
+                    price = "0.00"
+                sku = str(sku)
+                price = str(price)
+                name = self.clean(name)
+                brand = p.get("brand", "")
+                brand = self.clean(brand)
+                if brand:
+                    name = f"{name} - {brand}"
+                
+                result.append(Product(sku=sku, name=name, price=price))
+            except Exception as e:
+                bt.logging.error(f"WalmartConverter.convert Exception: {e}")
+                continue
+        return result
+    
+    @staticmethod
+    def tryload_catalog(file_path: str, max_rows=100_000) -> list:
+        """
+        Try to load a walmart catalog into a normalized list
+
+        :param file_path: Path to the Walmart CSV file
+        :param max_rows: Maximum number of rows to process
+        :return: List of dictionaries with 'sku', 'name', 'price'
+        """
+        try:
+            if not os.path.exists(file_path):   
+                bt.logging.error(f"File not found: {file_path}")
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            df = pd.read_csv(file_path)            
+            columns = ["UNIQUE_ID", "PRODUCT_NAME", "LIST_PRICE", "SALE_PRICE", "BRAND", "ITEM_NUMBER", "GTIN", "CATEGORY", "IN_STOCK"]            
+            df = df[[c for c in columns if c in df.columns]]            
+            df['PRODUCT_NAME'] = df['PRODUCT_NAME'].str.replace(r'<[^<>]*>', '', regex=True)
+            df['BRAND'] = df['BRAND'].str.replace(r'<[^<>]*>', '', regex=True)
+            df['CATEGORY'] = df['CATEGORY'].str.replace(r'<[^<>]*>', '', regex=True)            
+            
+            #Final renaming of columns
+            df = df.rename(columns={'GTIN': 'sku', 'PRODUCT_NAME': 'name', 'LIST_PRICE': 'price', 'IN_STOCK': 'InStock', 'BRAND' : 'brand'})
+            float_cols = df.select_dtypes(include=['float64']).columns
+            df[float_cols] = df[float_cols].astype(object)
+            df.fillna('', inplace=True)
+
+            # df = df.sort_values(by=['sku', 'name', 'price'], 
+            #                   ascending=[True, True, True],
+            #                   na_position='last')
+
+            df = df.sort_values(by=['name', 'price'], 
+                              ascending=[True, True],
+                              na_position='last')
+
+            df = df.head(max_rows)
+            df = df.to_dict(orient='records')
+            return df
+        except Exception as e:
+            bt.logging.error(str(e))
+            return []

@@ -1,6 +1,8 @@
 import json
 import json_repair
 import jsonschema
+from random import SystemRandom
+safe_random = SystemRandom()
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.validator.reward import validate_result_schema
 
@@ -270,10 +272,34 @@ def test_convert_1k_shopify_to_bitrecs():
 
     products = ProductFactory.dedupe(products)
     assert len(products) == 350
+  
 
-    if 1==2:
-        for p in products:
-            print(f"{p.sku} - {p.name} - {p.price}")
+def test_convert_30k_walmart_to_bitrecs():
+    walmart_catalog = "./tests/data/walmart/wallmart_30k_kaggle_trimmed.csv" #30k records
+    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WALMART, walmart_catalog)
+    products = ProductFactory.convert(catalog, CatalogProvider.WALMART)
+    print(f"converted {len(products)} records")
+    assert len(products) == 30000
+    
+    for product in products:
+        if not hasattr(product, "sku"):
+            assert False
+        if not hasattr(product, "name"):
+            assert False
+        if not hasattr(product, "price"):
+            assert False
+
+    dupe_count = ProductFactory.get_dupe_count(products)
+    print(f"dupe count: {dupe_count}")
+    assert dupe_count == 0
+
+    products = ProductFactory.dedupe(products)
+    assert len(products) == 30000
+
+    sample = safe_random.sample(products, 10)
+    for p in sample:
+        print(f"{p.sku} - {p.name} - {p.price}")    
+    
 
 
 def test_product_factory_parse_all():

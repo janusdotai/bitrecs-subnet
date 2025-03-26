@@ -26,8 +26,8 @@ class PromptFactory:
                  num_recs=5, 
                  load_catalog=False, 
                  debug=False, 
-                 season="fall/winter", 
-                 persona="Ecommerce Store Manager"):
+                 season="spring/summer", 
+                 persona="Ecommerce Retail Store Manager"):
         self.sku = sku
         self.context = context
         self.num_recs = num_recs
@@ -36,8 +36,8 @@ class PromptFactory:
         self.load_catalog = load_catalog
         self.debug = debug
         self.catalog = []
-        self.season = "fall/winter" if not season else season
-        self.persona = "Ecommerce Store Manager" if not persona else persona
+        self.season = "spring/summer" if not season else season
+        self.persona = "Ecommerce Retail Store Manager" if not persona else persona
 
     
     def generate_prompt(self) -> str:
@@ -67,12 +67,11 @@ class PromptFactory:
         
         # INSTRUCTIONS
 
-        Given the <query> make a list of {} product recommendations that compliment the query. 
-        Return only products from the <context> provided.
+        Given the <query> make a list of {} product recommendations from the <context> provided.
     
         Consider your <persona> before making your list of {} product recommendations. 
         Only return products that exist in the <context> provided.
-        Very important you must return products that exist in the context only. 
+        **Very important** you must only return products that exist in the context. 
         Do not hallucinate.
 
         Here is the user query:
@@ -88,27 +87,51 @@ class PromptFactory:
                 
         """.format(self.context)
 
+        # prompt += """\n
+        # # FINAL INSTRUCTIONS
+        
+        # 1) Load <persona> and <context> into your memory.
+        # 2) Observe the user <query>.
+        # 3) Find {} unique recommended products in the <context> that compliment the <query> and copy them to the return array.
+        # 4) The products recommended should be products a customer would buy **after** they have purchased the product from <query>.
+        # 5) Think step by step and consider the entire customer journey.                
+        # 6) Do not recommend the same product as the <query> in the recommendations.
+        # 7) The order of the recommendations is important. The first recommendation should be the most profitable and relevant to the <query>.
+        # 8) Important information is in the 'name' field. Use this information to make your recommendations.
+        # 9) Double check the potential return array for empty fields, invalid values, syntax errors, invalid string quotes, invalid characters.
+        # 10) Never explain yourself, no small talk, just return the final recommendations in the correct array format. 
+        # 11) Your final response should be a single JSON array of the recommendations.
+        # 12) Do not alter the context JSON, return all fields as they are.
+        # 13) Each recommendation should have a 'sku', 'name' and 'price' field.
+        # 14) Each recommendation should be unique (use 'sku' as the key field for uniqueness).
+        # 15) assert each recommendation is unique ('sku' is the key) and <query> not in recommendations.
+        # 16) assert len(recommendations) == {}. If not, start over until assert is true.
+        # 17) Never say 'Based on the provided query' or 'I have determined'. 
+        # 18) Never explain yourself and no smalltalk.
+        # 19) Return JSON.
+            
+        # """.format(self.num_recs, self.num_recs)
+
         prompt += """\n
         # FINAL INSTRUCTIONS
         
         1) Load <persona> and <context> into your memory.
-        2) Observe the user <query>.
-        3) Find {} unique recommended products in the <context> that compliment the <query> and copy them to the return array.
-        4) The products recommended should be products a customer would buy **after** they have purchased the product from <query>.
-        5) Think step by step and consider the entire customer journey.                
-        6) Do not recommend the same product as the <query> in the recommendations.
-        7) The order of the recommendations is important. The first recommendation should be the most profitable and relevant to the <query>.
-        8) Double check the potential return array for empty fields, invalid values, syntax errors, invalid string quotes, invalid characters.
-        9) Never explain yourself, no small talk, just return the final data in the correct array format. 
-        10) Your final response should be a single JSON array of the recommendations.
-        11) Do not alter the context JSON, return all fields as they are.
-        12) Each recommendation should have a 'sku', 'name' and 'price' field.
-        13) Each recommendation should be unique (use 'sku' as the key field for uniqueness).
-        14) assert each recommendation is unique ('sku' is the key) and <query> not in recommendations.
-        15) assert len(recommendations) == {}. If not, start over until assert is true.
-        16) Never say 'Based on the provided query' or 'I have determined'. 
-        17) Never explain yourself and no smalltalk.
-        18) Return JSON.
+        2) Observe the user <query> that is a 'sku'. Find the matching product from the <context> and memorize its 'name' and 'price'.
+        3) Find {} unique products in the <context> that you think would go well with <query> and copy them to the return array.       
+        4) Never recommend the same product as the one in the <query> in your final recommendations.
+        5) The order of the recommendations is important. The first recommendation should be the most profitable and relevant to the <query>.
+        6) Important information is in the 'name' field. Use this information to make your recommendations.
+        7) Double check the potential return array for empty fields, invalid values, syntax errors, invalid string quotes, invalid characters.
+        8) Never explain yourself, no small talk, just return the final recommendations in the correct array format. 
+        9) Your final response should be a single JSON array of the recommendations.
+        10) Do not alter the context JSON, return all fields as they are.
+        11) Each recommendation should have a 'sku', 'name' and 'price' field.
+        12) Each recommendation should be unique (use 'sku' as the key field for uniqueness).
+        13) assert each recommendation is unique ('sku' is the key) and <query> not in recommendations.
+        14) assert len(recommendations) == {}. If not, start over until assert is true.
+        15) Never say 'Based on the provided query' or 'I have determined'. 
+        16) Never explain yourself and no smalltalk.
+        17) Return JSON.
             
         """.format(self.num_recs, self.num_recs)
 
@@ -121,6 +144,7 @@ class PromptFactory:
             bt.logging.debug("Prompt: {}".format(prompt))
 
         return prompt
+        
     
 
     @staticmethod

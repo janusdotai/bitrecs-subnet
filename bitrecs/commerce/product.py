@@ -58,9 +58,12 @@ class ProductFactory:
             float_cols = df.select_dtypes(include=['float64']).columns
             df[float_cols] = df[float_cols].astype(object)
             df.fillna('', inplace=True)
-            df = df.sort_values(by=['sku', 'name', 'price'], 
-                              ascending=[True, True, True],
-                              na_position='last')
+            # df = df.sort_values(by=['sku', 'name', 'price'], 
+            #                   ascending=[True, True, True],
+            #                   na_position='last')
+            df = df.sort_values(by=['name', 'price'], 
+                            ascending=[True, True],
+                            na_position='last')
 
             df = df.head(max_rows)
             df = df.to_dict(orient='records')
@@ -123,22 +126,18 @@ class ProductFactory:
                     continue
                 if 'price' not in product:
                     continue
-                
-                # good_json_string = json_repair.repair_json(str(p))
-                # product = json.loads(good_json_string)
 
-                sku = product["sku"]
-                name = product["name"]
+                sku = str(product["sku"])
+                name = str(product["name"])
                 name = re.sub(r"[^A-Za-z0-9 ]", "", name)
-                price = product["price"]
-
+                price = str(product["price"])
                 thing = Product(sku=sku, name=name, price=price)
                 result.append(thing)
         except Exception as e:
             bt.logging.error(f"try_parse_context3 Exception: {e}")
             pass
         
-        sorted_result = sorted(result, key=lambda x: x.sku)
+        sorted_result = sorted(result, key=lambda x: x.name) #TODO: perf test on large context
         return sorted_result
 
 
@@ -462,8 +461,8 @@ class WalmartConverter(BaseConverter):
                 price = str(price)
                 name = self.clean(name)
                 brand = p.get("brand", "")
-                brand = self.clean(brand)
                 if brand:
+                    brand = self.clean(brand)
                     name = f"{name} - {brand}"
                 
                 result.append(Product(sku=sku, name=name, price=price))
@@ -471,6 +470,7 @@ class WalmartConverter(BaseConverter):
                 bt.logging.error(f"WalmartConverter.convert Exception: {e}")
                 continue
         return result
+    
     
     @staticmethod
     def tryload_catalog(file_path: str, max_rows=100_000) -> list:

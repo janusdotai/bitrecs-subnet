@@ -181,21 +181,19 @@ def product_1k():
     products = ProductFactory.convert(catalog, CatalogProvider.WALMART)    
     return products
 
-
+@ttl_cache(ttl=45)
 def product_5k():
     walmart_catalog = "./tests/data/walmart/wallmart_5k_kaggle_trimmed.csv"
     catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WALMART, walmart_catalog)
     products = ProductFactory.convert(catalog, CatalogProvider.WALMART)
     return products
 
-
-@ttl_cache(maxsize=31_000, ttl=45)
+@ttl_cache(ttl=45)
 def product_20k():   
     walmart_catalog = "./tests/data/walmart/wallmart_30k_kaggle_trimmed.csv" #30k records
     catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WALMART, walmart_catalog)
     products = ProductFactory.convert(catalog, CatalogProvider.WALMART)    
     return products    
-
 
 
 def get_rec(products, sku, model=None, num_recs=5) -> list:

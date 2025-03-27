@@ -41,6 +41,7 @@ from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
+from bitrecs.utils.distance import display_rec_matrix, select_most_similar_bitrecs_threshold2
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (
@@ -206,6 +207,31 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
+    async def analyze_similar_requests(self, requests: List[BitrecsRequest]):        
+        if not requests or len(requests) < 2:
+            bt.logging.info(f"Too few requests to analyze: {len(requests)}")
+            return
+        try:
+            top_k = 2
+            threshold = 0.05
+            most_similar = select_most_similar_bitrecs_threshold2(requests, top_k, threshold)
+            if not most_similar:
+                bt.logging.info(f"No similar recs found in this round step: {self.step}")
+                return
+            for sim in most_similar:
+                bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+            #selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
+            #report = recommender_presenter(sku, selected_sets)
+            rec_sets = [set(r['sku'] for r in req.results) for req in requests]
+            models_used = [model for req in requests for model in req.models_used]
+            display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
+
+        except Exception as e:
+            bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
+            return
+        
+        
+
     async def main_loop(self):
         """Main loop for the validator."""
         bt.logging.info(
@@ -271,6 +297,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             )
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
+
+                        self.analyze_similar_requests(responses)
 
                         # Adjust the scores based on responses from miners.
                         rewards = get_rewards(num_recs=number_of_recs_desired,

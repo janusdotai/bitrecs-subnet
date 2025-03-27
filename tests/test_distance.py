@@ -1,3 +1,4 @@
+from enum import Enum
 import os
 import time
 os.environ["NEST_ASYNCIO"] = "0"
@@ -34,12 +35,14 @@ WARMUP_OLLAMA_MODEL = "mistral-nemo"
 #MODEL_BATTERY = ["llama3.1:70b-instruct-q4_0", "qwen2.5:32b", "gemma3:27b", "nemotron:latest"]
 MODEL_BATTERY = ["qwen2.5:32b", "gemma3:27b", "nemotron:latest", "phi4"]
 
-CLOUD_BATTERY = ["deepseek/deepseek-chat-v3-0324",
-                 "amazon/nova-lite-v1", "google/gemini-flash-1.5-8b",
-                 "x-ai/grok-2-1212", "openai/chatgpt-4o-latest", "anthropic/claude-2.1",
-                 "google/gemini-2.0-flash-001", "anthropic/claude-3.7-sonnet",
-                 "openai/gpt-4o-mini-search-preview", "openai/gpt-4o-mini", "qwen/qwen-turbo"]
-#CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/gemini-2.0-flash-001"]
+# CLOUD_BATTERY = ["deepseek/deepseek-chat-v3-0324",
+#                  "amazon/nova-lite-v1", "google/gemini-flash-1.5-8b",
+#                  "x-ai/grok-2-1212", "openai/chatgpt-4o-latest", "anthropic/claude-2.1",
+#                  "google/gemini-2.0-flash-001", "anthropic/claude-3.7-sonnet",
+#                  "openai/gpt-4o-mini-search-preview", "openai/gpt-4o-mini", "qwen/qwen-turbo"]
+
+CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/gemini-2.0-flash-001",
+                 "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini"]
 
 
 
@@ -234,6 +237,9 @@ def mock_br_request(products: List[Product],
         model = safe_random.choice(MODEL_BATTERY)
     print(f"Model:\033[32m {model} \033[0m")
 
+    tc = PromptFactory.get_token_count(prompt)
+    print(f"Token count: {tc}")
+
     llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
                                  model=model, 
                                  system_prompt="You are a helpful assistant", 
@@ -280,6 +286,9 @@ def mock_br_request_cloud(products: List[Product],
     if not model:
         model = safe_random.choice(CLOUD_BATTERY)
     print(f"Cloud Model:\033[32m {model} \033[0m")
+
+    tc = PromptFactory.get_token_count(prompt)
+    print(f"Token count: {tc}")
 
     llm_response = LLMFactory.query_llm(server=LLM.OPEN_ROUTER,
                                  model=model, 
@@ -351,54 +360,154 @@ def product_name_by_sku_trimmed(sku: str, take_length: int = 50, products = None
         return f"Error loading sku {sku}"    
 
 
-def display_rec_matrix(rec_sets: List[Set[str]], models_used: List[str]):
-    print(f"total of {len(rec_sets)} sets")
-    config = TestConfig()    
+
+
+class ColorScheme(Enum):
+    VIRIDIS = "viridis"
+    ROCKET = "rocket"
+    MAKOTO = "makoto"
+    SPECTRAL = "spectral"
+
+class ColorPalette:
+    """Color schemes for matrix visualization"""
+    SCHEMES = {
+        ColorScheme.VIRIDIS: {
+            "strong": "\033[38;5;55m",   # Dark Purple
+            "medium": "\033[38;5;31m",   # Deep Blue
+            "weak": "\033[38;5;37m",     # Teal
+            "minimal": "\033[38;5;114m",  # Lime Green
+            "highlight": "\033[38;5;227m" # Bright Yellow
+        },
+        ColorScheme.ROCKET: {
+            "strong": "\033[38;5;89m",    # Deep Plum
+            "medium": "\033[38;5;161m",   # Reddish Purple
+            "weak": "\033[38;5;196m",     # Warm Red
+            "minimal": "\033[38;5;209m",   # Coral
+            "highlight": "\033[38;5;223m"  # Light Peach
+        },
+        ColorScheme.MAKOTO: {
+            "strong": "\033[38;5;232m",   # Near Black
+            "medium": "\033[38;5;24m",    # Dark Blue
+            "weak": "\033[38;5;67m",      # Steel Blue
+            "minimal": "\033[38;5;117m",  # Light Sky Blue
+            "highlight": "\033[38;5;195m" # Pale Blue
+        },
+        ColorScheme.SPECTRAL: {
+            "strong": "\033[38;5;160m",   # Red
+            "medium": "\033[38;5;215m",   # Orange
+            "weak": "\033[38;5;229m",     # Soft Yellow
+            "minimal": "\033[38;5;151m",  # Mint Green
+            "highlight": "\033[38;5;32m"  # Cool Blue
+        }
+    }
+
+def display_rec_matrix(
+    rec_sets: List[Set[str]], 
+    models_used: List[str], 
+    highlight_indices: List[int] = None,
+    color_scheme: ColorScheme = ColorScheme.VIRIDIS
+) -> None:
+    """
+    Display similarity matrix with customizable color schemes
+    
+    Args:
+        rec_sets: List of recommendation sets
+        models_used: List of model names
+        highlight_indices: Indices of sets to highlight
+        color_scheme: Color scheme to use for visualization
+    """
+    colors = ColorPalette.SCHEMES[color_scheme]
+    print(f"\nDistance Matrix - {len(rec_sets)} sets\n")
+    #print(f"total of {len(rec_sets)} sets")
+    
+    # Print header with highlighting
+    header = "       "
+    for j in range(len(rec_sets)):
+        col_num = f"{j:7d}"
+        if highlight_indices and j in highlight_indices:
+            header += f"{colors['highlight']}{col_num}\033[0m"
+        else:
+            header += col_num
+    print(header)
+    
+    # Track matches for summary
+    match_info = []
+    
+    # Print matrix with color scheme
     for i in range(len(rec_sets)):
-        row = f"{i:4d}"
+        # Handle row highlighting
+        if highlight_indices and i in highlight_indices:
+            row_start = f"{colors['highlight']}{i:4d}  \033[0m"
+        else:
+            row_start = f"{i:4d}  "
+        
+        row = []
         for j in range(len(rec_sets)):
             if j < i:
                 distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
-                row += f"{distance:7.3f}"
+                cell = f"{distance:7.3f}"
+                
+                # Track significant matches
+                if distance < 0.91:
+                    match_info.append((i, j, distance, models_used[i], models_used[j]))
+                
+                # Apply color scheme based on distance
+                if distance < 1.0:
+                    if highlight_indices and i in highlight_indices and j in highlight_indices:
+                        cell = f"{colors['highlight']}{cell}\033[0m"
+                    elif distance <= 0.5:
+                        cell = f"{colors['strong']}{cell}\033[0m"
+                    elif distance <= 0.7:
+                        cell = f"{colors['medium']}{cell}\033[0m"
+                    elif distance <= 0.9:
+                        cell = f"{colors['weak']}{cell}\033[0m"
+                    else:
+                        cell = f"{colors['minimal']}{cell}\033[0m"
+                row.append(cell)
             else:
-                row += "      -"
-        print(row)
+                row.append("      -")
+        
+        print(row_start + "".join(row))
+    
+    # Print match summary with same color scheme
+    if match_info:
+        print("\nSignificant Model Matches (Sorted by Similarity):")
+        print("-" * 60)
+        # Sort by similarity (highest first)
+        for i, j, dist, model1, model2 in sorted(match_info, key=lambda x: (1 - x[2]), reverse=True):
+            similarity = 1 - dist
+            # Only show meaningful matches
+            if similarity >= 0.1:  # Adjust threshold as needed
+                if similarity >= 0.5:
+                    color = colors['strong']
+                elif similarity >= 0.3:
+                    color = colors['medium']
+                elif similarity >= 0.1:
+                    color = colors['weak']
+                
+                print(f"{color}Similarity: {similarity:.2f}\033[0m")
+                print(f"  Model {i}: {model1}")
+                print(f"  Model {j}: {model2}")
+                print(f"  Matrix Distance: {dist:.3f}")
+                print("-" * 40)
+                if "random" in model1 or "random" in model2:
+                    print(f"\033[33m  ⚠️ Warning: Includes random set!\033[0m")
+    
+    # Add scheme-specific legend
+    print(f"\nLegend ({color_scheme.value}):")
+    print(f"{colors['highlight']}Highlighted Rows/Cols\033[0m: Selected sets")
+    print(f"{colors['strong']}>= 0.5\033[0m "
+          f"{colors['medium']}>= 0.3\033[0m "
+          f"{colors['weak']}>= 0.1\033[0m "
+          f"{colors['minimal']}> 0.0\033[0m: Match strength")
     
     print("\nNote: Lower distances between sets (real) vs (random)")
     print("      indicate better recommendation quality")
-    print("=" * 40)    
+    print("=" * 40)
 
-    print("\nSelecting most similar sets:")
-    most_similar = select_most_similar_sets(rec_sets, top_n=config.top_n)
-    print(f"Most similar set indices: {most_similar}")
-    print("Selected sets:")
-    for idx in most_similar:
-        model_used = models_used[idx]
-        print(f"Set {idx}: {sorted(list(rec_sets[idx]))} - \033[32m {model_used} \033[0m")
-    
-    print("\nVerifying recommendation quality:")
-    print("=" * 60)    
-    
-    if "random" in model_used:
-        print(f"\033[33m WARNING: Set {idx} is a random set, not a real recommendation! \033[0m")        
-    
-    similar_set_distances = []
-    for i in range(len(most_similar)):
-        for j in range(i + 1, len(most_similar)):
-            dist = calculate_jaccard_distance(rec_sets[most_similar[i]], rec_sets[most_similar[j]])
-            similar_set_distances.append(dist)
-    
-    avg_similarity = 1 - (sum(similar_set_distances) / len(similar_set_distances))
-    print(f"Average similarity between selected sets: {avg_similarity:.3f}")
-    print(f"Average distance between selected sets: {1-avg_similarity:.3f}")    
-    
-    if avg_similarity >= config.similarity_threshold:
-        f"Selected sets have low similarity ({avg_similarity:.3f} < {config.similarity_threshold})"
-    
-    print("\nQuality check passed:")
-    print(f"✓ All selected sets are from real recommendations")
-    print(f"✓ Average similarity above threshold ({avg_similarity:.3f} >= {config.similarity_threshold})")
-    print("=" * 60)  
+
+
+
 
 
 
@@ -755,7 +864,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
         print(f"Model {model}:")
         print(f"  SKUs: {sorted(skus)}")
 
-    print(f"\033[1;32m No Threshold \033[0m")
+    print(f"\033[1;32m Top {config.top_n} No-Threshold Pairs: \033[0m")
     selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
     report = recommender_presenter(sku, selected_sets)
     print(report)
@@ -846,7 +955,9 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
     
     print("\nGenerating cloud recommendations...")
+    #battery = CLOUD_BATTERY[:4]
     battery = CLOUD_BATTERY
+    safe_random.shuffle(battery)
     for model in battery:        
         try:            
             req = mock_br_request_cloud(products, group_id, sku, model, config.num_recs)
@@ -936,7 +1047,7 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"\nNo results for threshold (>51%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    display_rec_matrix(rec_sets, models_used)    
+    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
 
 
 def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
@@ -980,8 +1091,8 @@ def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
     
     print("\nGenerating cloud recommendations...")
-    battery = CLOUD_BATTERY[:5]
-    #battery = CLOUD_BATTERY
+    #battery = CLOUD_BATTERY[:5]
+    battery = CLOUD_BATTERY
     safe_random.shuffle(battery)
     for model in battery:
         try:            
@@ -1105,7 +1216,7 @@ def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    display_rec_matrix(rec_sets, models_used)
+    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
 
 
 def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
@@ -1149,8 +1260,8 @@ def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
         print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
     
     print("\nGenerating cloud recommendations...")
-    battery = CLOUD_BATTERY[:3]
-    #battery = CLOUD_BATTERY
+    #battery = CLOUD_BATTERY[:5]
+    battery = CLOUD_BATTERY
     safe_random.shuffle(battery)
     for model in battery:
         try:            
@@ -1274,4 +1385,4 @@ def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
         print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    display_rec_matrix(rec_sets, models_used)
+    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)

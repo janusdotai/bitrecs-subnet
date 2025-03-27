@@ -5,7 +5,7 @@ import bittensor as bt
 import pandas as pd
 from abc import abstractmethod
 from enum import Enum
-from typing import Counter
+from typing import Counter, Set
 from pydantic import BaseModel
 from dataclasses import dataclass
 
@@ -177,13 +177,26 @@ class ProductFactory:
             return -1
         
     
+    # @staticmethod
+    # def dedupe(products: list[Product]) -> list[Product]:
+    #     unique_products = {}
+    #     for product in products:
+    #         if product.sku not in unique_products:
+    #             unique_products[product.sku] = product
+    #     return list(unique_products.values())
+    
+
     @staticmethod
-    def dedupe(products: list[Product]) -> list[Product]:
-        unique_products = {}
+    def dedupe(products: list[Product]) -> Set[Product]:
+        """Dedupe and sort"""
+        seen = set()
+        deduped = []
         for product in products:
-            if product.sku not in unique_products:
-                unique_products[product.sku] = product
-        return list(unique_products.values())
+            if product.sku not in seen:
+                seen.add(product.sku)
+                deduped.append(product)
+        deduped = sorted(deduped, key=lambda x: (x.name.lower(), x.price))
+        return deduped
     
                
     @staticmethod

@@ -16,7 +16,8 @@ from dataclasses import asdict
 from typing import List, Optional, Set
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
-from bitrecs.llms.prompt_factory import PromptFactory
+#from bitrecs.llms.prompt_factory import PromptFactory
+from bitrecs.llms.prompt_factory2 import PromptFactory2 as PromptFactory
 from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (
     display_rec_matrix,
@@ -47,6 +48,9 @@ CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/ge
                  "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini"]
 
 
+_FIRST_GET_REC = False
+_FIRST_GET_MOCK_REC = False
+DEBUG_ALL_PROMPTS = False
 
 class TestConfig:
     similarity_threshold: float = 0.33
@@ -172,15 +176,16 @@ def product_20k_a() -> List[Product]:
 
 
 def get_rec(products, sku, model=None, num_recs=5) -> List:
+    global _FIRST_GET_REC
     if not sku or not products:
         raise ValueError("sku and products are required")
     products = ProductFactory.dedupe(products)
     user_prompt = sku    
-    debug_prompts = False
+    debug_prompts = DEBUG_ALL_PROMPTS
     match = [products for products in products if products.sku == user_prompt][0]
     print(match)
-
-    context = json.dumps([asdict(products) for products in products])
+    
+    context = json.dumps([asdict(products) for products in products])   
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
                             num_recs=num_recs, 
@@ -191,7 +196,10 @@ def get_rec(products, sku, model=None, num_recs=5) -> List:
     if not model:
         model = safe_random.choice(MODEL_BATTERY)        
     print(f"Local Model:\033[32m {model} \033[0m")
-    #print(prompt)
+    if not _FIRST_GET_REC:
+        print("\nFirst prompt template:")
+        print(prompt)
+        _FIRST_GET_REC = True
 
     llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
                                  model=model, 
@@ -216,14 +224,16 @@ def mock_br_request(products: List[Product],
                     sku: str, 
                     model: str, 
                     num_recs: int) -> Optional[BitrecsRequest]:
-    assert num_recs > 0 and num_recs <= 20   
     
+    global _FIRST_GET_MOCK_REC
+    assert num_recs > 0 and num_recs <= 20   
+    products = ProductFactory.dedupe(products)
     user_prompt = sku    
-    debug_prompts = False
+    debug_prompts = DEBUG_ALL_PROMPTS
     match = [products for products in products if products.sku == user_prompt][0]
-    print(match)
-
-    context = json.dumps([asdict(products) for products in products])
+    print(match)    
+    
+    context = json.dumps([asdict(products) for products in products])    
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
                             num_recs=num_recs, 
@@ -234,6 +244,11 @@ def mock_br_request(products: List[Product],
     if not model:
         model = safe_random.choice(MODEL_BATTERY)
     print(f"Model:\033[32m {model} \033[0m")
+
+    if not _FIRST_GET_MOCK_REC:
+        print("\nFirst prompt template:")
+        print(prompt)
+        _FIRST_GET_MOCK_REC = True
 
     tc = PromptFactory.get_token_count(prompt)
     print(f"Token count: {tc}")
@@ -266,13 +281,13 @@ def mock_br_request_cloud(products: List[Product],
                     model: str, 
                     num_recs: int) -> Optional[BitrecsRequest]:
     assert num_recs > 0 and num_recs <= 20   
-    
+    products = ProductFactory.dedupe(products)
     user_prompt = sku    
-    debug_prompts = False
+    debug_prompts = DEBUG_ALL_PROMPTS
     match = [products for products in products if products.sku == user_prompt][0]
     print(match)
-
-    context = json.dumps([asdict(products) for products in products])
+  
+    context = json.dumps([asdict(products) for products in products])    
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
                             num_recs=num_recs, 
@@ -356,7 +371,6 @@ def product_name_by_sku_trimmed(sku: str, take_length: int = 50, products = None
     except Exception as e:
         print(e)
         return f"Error loading sku {sku}"    
-
 
 
 
@@ -590,9 +604,9 @@ def test_local_llm_bitrecs_5k_jaccard():
 
     config = TestConfig()
     rec_sets = []
-    models_used = []        
+    models_used = []
     
-    battery = MODEL_BATTERY    
+    battery = MODEL_BATTERY
     safe_random.shuffle(battery)
 
     print(f"USING LOCAL MODEL BATTERY of size: {len(battery)}")
@@ -765,8 +779,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
         print(report)
     else:        
         print(f"\033[31m No sets for threshold (>51%) {len(selected_sets)} \033[0m")
-
-    #display_rec_matrix(selected_sets, models_used, highlight_indices=[0, 1, 2, 3, 4], color_scheme=ColorScheme.VIRIDIS)
+    
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
     display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
 
@@ -816,7 +829,7 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
     battery = CLOUD_BATTERY
     safe_random.shuffle(battery)
     for model in battery:        
-        try:            
+        try:                        
             req = mock_br_request_cloud(products, group_id, sku, model, config.num_recs)
             rec_requests.append(req)
             print(f"Set {model}: {[r['sku'] for r in req.results]}")
@@ -872,8 +885,8 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
         report = recommender_presenter(sku, selected_sets2)        
         print(f"\033[1;32m Low Threshold {low_threshold} \033[0m")
         print(report)
-    else:
-        print(f"No sets found meeting threshold {low_threshold}")
+    else:        
+        print(f"\033[31m No sets found low threshold {low_threshold} \033[0m")
 
     if most_similar3:
         print("Selected sets:")
@@ -887,7 +900,7 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"\033[1;32m Medium Threshold {med_threshold} \033[0m")
         print(report)
     else:
-        print(f"\033[31m Noo sets found meeting threshold {med_threshold} \033[0m")
+        print(f"\033[31m No sets found medium threshold {med_threshold} \033[0m")
 
     if most_similar4:
         print("Selected sets:")

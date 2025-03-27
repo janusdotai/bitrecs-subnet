@@ -212,32 +212,32 @@ class BaseValidatorNeuron(BaseNeuron):
         if not requests or len(requests) < 2:
             bt.logging.info(f"Too few requests to analyze: {len(requests)}")
             return
-        try:
-            top_k = 2
-            threshold = 0.05
-            most_similar = select_most_similar_bitrecs_threshold2(requests, top_k, threshold)
-            if not most_similar:
-                bt.logging.info(f"No similar recs found in this round step: {self.step}")
-                return
-            for sim in most_similar:
-                bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+        try:            
             rec_sets = []
             models_used = []
             for response in requests:
                 try:                    
                     recs = [r.sku for r in ProductFactory.try_parse_context(response.context)]
-                    #rec_sets.append(set(recs))
-                    rec_sets.append(recs)
+                    rec_sets.append(set(recs))  #TODO: before/after scoring
                     model = response.models_used[0] if response.models_used else "unknown"
                     models_used.append(model)
                 except Exception as e:
                     bt.logging.error(f"Error parsing response: {e}")
                     continue
+            
+            top_k = 2
+            threshold = 0.05
+            most_similar = select_most_similar_bitrecs_threshold2(rec_sets, top_k, threshold)
+            if not most_similar:
+                bt.logging.info(f"No similar recs found in this round step: {self.step}")
+                return
+            for sim in most_similar:
+                bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
             display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
         except Exception as e:
             bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
             bt.logging.error(traceback.format_exc())
-            return        
+            return
         
 
     async def main_loop(self):

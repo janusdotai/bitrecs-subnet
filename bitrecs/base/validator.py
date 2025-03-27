@@ -298,7 +298,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         et = time.perf_counter()
                         bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
 
-                        self.analyze_similar_requests(responses)
+                        await self.analyze_similar_requests(responses)
 
                         # Adjust the scores based on responses from miners.
                         rewards = get_rewards(num_recs=number_of_recs_desired,

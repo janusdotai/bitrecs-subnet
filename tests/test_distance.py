@@ -1,4 +1,4 @@
-from enum import Enum
+
 import os
 import time
 os.environ["NEST_ASYNCIO"] = "0"
@@ -19,12 +19,14 @@ from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (
+    display_rec_matrix,
     select_most_similar_sets,
     calculate_jaccard_distance, 
     select_most_similar_bitrecs, 
     select_most_similar_bitrecs_threshold, 
     select_most_similar_bitrecs_threshold2    
 )
+from enum import Enum
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -44,10 +46,6 @@ MODEL_BATTERY = ["qwen2.5:32b", "gemma3:27b", "nemotron:latest", "phi4"]
 CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/gemini-2.0-flash-001",
                  "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini"]
 
-
-
-#3/26/2025  7 passed, 1 warning in 172.75s (0:02:52) 
-#3/26/2025  7 passed, 1 warning in 145.10s
 
 
 class TestConfig:
@@ -362,148 +360,148 @@ def product_name_by_sku_trimmed(sku: str, take_length: int = 50, products = None
 
 
 
-class ColorScheme(Enum):
-    VIRIDIS = "viridis"
-    ROCKET = "rocket"
-    MAKOTO = "makoto"
-    SPECTRAL = "spectral"
+# class ColorScheme(Enum):
+#     VIRIDIS = "viridis"
+#     ROCKET = "rocket"
+#     MAKOTO = "makoto"
+#     SPECTRAL = "spectral"
 
-class ColorPalette:
-    """Color schemes for matrix visualization"""
-    SCHEMES = {
-        ColorScheme.VIRIDIS: {
-            "strong": "\033[38;5;55m",   # Dark Purple
-            "medium": "\033[38;5;31m",   # Deep Blue
-            "weak": "\033[38;5;37m",     # Teal
-            "minimal": "\033[38;5;114m",  # Lime Green
-            "highlight": "\033[38;5;227m" # Bright Yellow
-        },
-        ColorScheme.ROCKET: {
-            "strong": "\033[38;5;89m",    # Deep Plum
-            "medium": "\033[38;5;161m",   # Reddish Purple
-            "weak": "\033[38;5;196m",     # Warm Red
-            "minimal": "\033[38;5;209m",   # Coral
-            "highlight": "\033[38;5;223m"  # Light Peach
-        },
-        ColorScheme.MAKOTO: {
-            "strong": "\033[38;5;232m",   # Near Black
-            "medium": "\033[38;5;24m",    # Dark Blue
-            "weak": "\033[38;5;67m",      # Steel Blue
-            "minimal": "\033[38;5;117m",  # Light Sky Blue
-            "highlight": "\033[38;5;195m" # Pale Blue
-        },
-        ColorScheme.SPECTRAL: {
-            "strong": "\033[38;5;160m",   # Red
-            "medium": "\033[38;5;215m",   # Orange
-            "weak": "\033[38;5;229m",     # Soft Yellow
-            "minimal": "\033[38;5;151m",  # Mint Green
-            "highlight": "\033[38;5;32m"  # Cool Blue
-        }
-    }
+# class ColorPalette:
+#     """Color schemes for matrix visualization"""
+#     SCHEMES = {
+#         ColorScheme.VIRIDIS: {
+#             "strong": "\033[38;5;55m",   # Dark Purple
+#             "medium": "\033[38;5;31m",   # Deep Blue
+#             "weak": "\033[38;5;37m",     # Teal
+#             "minimal": "\033[38;5;114m",  # Lime Green
+#             "highlight": "\033[38;5;227m" # Bright Yellow
+#         },
+#         ColorScheme.ROCKET: {
+#             "strong": "\033[38;5;89m",    # Deep Plum
+#             "medium": "\033[38;5;161m",   # Reddish Purple
+#             "weak": "\033[38;5;196m",     # Warm Red
+#             "minimal": "\033[38;5;209m",   # Coral
+#             "highlight": "\033[38;5;223m"  # Light Peach
+#         },
+#         ColorScheme.MAKOTO: {
+#             "strong": "\033[38;5;232m",   # Near Black
+#             "medium": "\033[38;5;24m",    # Dark Blue
+#             "weak": "\033[38;5;67m",      # Steel Blue
+#             "minimal": "\033[38;5;117m",  # Light Sky Blue
+#             "highlight": "\033[38;5;195m" # Pale Blue
+#         },
+#         ColorScheme.SPECTRAL: {
+#             "strong": "\033[38;5;160m",   # Red
+#             "medium": "\033[38;5;215m",   # Orange
+#             "weak": "\033[38;5;229m",     # Soft Yellow
+#             "minimal": "\033[38;5;151m",  # Mint Green
+#             "highlight": "\033[38;5;32m"  # Cool Blue
+#         }
+#     }
 
-def display_rec_matrix(
-    rec_sets: List[Set[str]], 
-    models_used: List[str], 
-    highlight_indices: List[int] = None,
-    color_scheme: ColorScheme = ColorScheme.VIRIDIS
-) -> None:
-    """
-    Display similarity matrix with customizable color schemes
+# def display_rec_matrix(
+#     rec_sets: List[Set[str]], 
+#     models_used: List[str], 
+#     highlight_indices: List[int] = None,
+#     color_scheme: ColorScheme = ColorScheme.VIRIDIS
+# ) -> None:
+#     """
+#     Display similarity matrix with customizable color schemes
     
-    Args:
-        rec_sets: List of recommendation sets
-        models_used: List of model names
-        highlight_indices: Indices of sets to highlight
-        color_scheme: Color scheme to use for visualization
-    """
-    colors = ColorPalette.SCHEMES[color_scheme]
-    print(f"\nDistance Matrix - {len(rec_sets)} sets\n")
-    #print(f"total of {len(rec_sets)} sets")
+#     Args:
+#         rec_sets: List of recommendation sets
+#         models_used: List of model names
+#         highlight_indices: Indices of sets to highlight
+#         color_scheme: Color scheme to use for visualization
+#     """
+#     colors = ColorPalette.SCHEMES[color_scheme]
+#     print(f"\nDistance Matrix - {len(rec_sets)} sets\n")
+#     #print(f"total of {len(rec_sets)} sets")
     
-    # Print header with highlighting
-    header = "       "
-    for j in range(len(rec_sets)):
-        col_num = f"{j:7d}"
-        if highlight_indices and j in highlight_indices:
-            header += f"{colors['highlight']}{col_num}\033[0m"
-        else:
-            header += col_num
-    print(header)
+#     # Print header with highlighting
+#     header = "       "
+#     for j in range(len(rec_sets)):
+#         col_num = f"{j:7d}"
+#         if highlight_indices and j in highlight_indices:
+#             header += f"{colors['highlight']}{col_num}\033[0m"
+#         else:
+#             header += col_num
+#     print(header)
     
-    # Track matches for summary
-    match_info = []
+#     # Track matches for summary
+#     match_info = []
     
-    # Print matrix with color scheme
-    for i in range(len(rec_sets)):
-        # Handle row highlighting
-        if highlight_indices and i in highlight_indices:
-            row_start = f"{colors['highlight']}{i:4d}  \033[0m"
-        else:
-            row_start = f"{i:4d}  "
+#     # Print matrix with color scheme
+#     for i in range(len(rec_sets)):
+#         # Handle row highlighting
+#         if highlight_indices and i in highlight_indices:
+#             row_start = f"{colors['highlight']}{i:4d}  \033[0m"
+#         else:
+#             row_start = f"{i:4d}  "
         
-        row = []
-        for j in range(len(rec_sets)):
-            if j < i:
-                distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
-                cell = f"{distance:7.3f}"
+#         row = []
+#         for j in range(len(rec_sets)):
+#             if j < i:
+#                 distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
+#                 cell = f"{distance:7.3f}"
                 
-                # Track significant matches
-                if distance < 0.91:
-                    match_info.append((i, j, distance, models_used[i], models_used[j]))
+#                 # Track significant matches
+#                 if distance < 0.91:
+#                     match_info.append((i, j, distance, models_used[i], models_used[j]))
                 
-                # Apply color scheme based on distance
-                if distance < 1.0:
-                    if highlight_indices and i in highlight_indices and j in highlight_indices:
-                        cell = f"{colors['highlight']}{cell}\033[0m"
-                    elif distance <= 0.5:
-                        cell = f"{colors['strong']}{cell}\033[0m"
-                    elif distance <= 0.7:
-                        cell = f"{colors['medium']}{cell}\033[0m"
-                    elif distance <= 0.9:
-                        cell = f"{colors['weak']}{cell}\033[0m"
-                    else:
-                        cell = f"{colors['minimal']}{cell}\033[0m"
-                row.append(cell)
-            else:
-                row.append("      -")
+#                 # Apply color scheme based on distance
+#                 if distance < 1.0:
+#                     if highlight_indices and i in highlight_indices and j in highlight_indices:
+#                         cell = f"{colors['highlight']}{cell}\033[0m"
+#                     elif distance <= 0.5:
+#                         cell = f"{colors['strong']}{cell}\033[0m"
+#                     elif distance <= 0.7:
+#                         cell = f"{colors['medium']}{cell}\033[0m"
+#                     elif distance <= 0.9:
+#                         cell = f"{colors['weak']}{cell}\033[0m"
+#                     else:
+#                         cell = f"{colors['minimal']}{cell}\033[0m"
+#                 row.append(cell)
+#             else:
+#                 row.append("      -")
         
-        print(row_start + "".join(row))
+#         print(row_start + "".join(row))
     
-    # Print match summary with same color scheme
-    if match_info:
-        print("\nSignificant Model Matches (Sorted by Similarity):")
-        print("-" * 60)
-        # Sort by similarity (highest first)
-        for i, j, dist, model1, model2 in sorted(match_info, key=lambda x: (1 - x[2]), reverse=True):
-            similarity = 1 - dist
-            # Only show meaningful matches
-            if similarity >= 0.1:  # Adjust threshold as needed
-                if similarity >= 0.5:
-                    color = colors['strong']
-                elif similarity >= 0.3:
-                    color = colors['medium']
-                elif similarity >= 0.1:
-                    color = colors['weak']
+#     # Print match summary with same color scheme
+#     if match_info:
+#         print("\nSignificant Model Matches (Sorted by Similarity):")
+#         print("-" * 60)
+#         # Sort by similarity (highest first)
+#         for i, j, dist, model1, model2 in sorted(match_info, key=lambda x: (1 - x[2]), reverse=True):
+#             similarity = 1 - dist
+#             # Only show meaningful matches
+#             if similarity >= 0.1:  # Adjust threshold as needed
+#                 if similarity >= 0.5:
+#                     color = colors['strong']
+#                 elif similarity >= 0.3:
+#                     color = colors['medium']
+#                 elif similarity >= 0.1:
+#                     color = colors['weak']
                 
-                print(f"{color}Similarity: {similarity:.2f}\033[0m")
-                print(f"  Model {i}: {model1}")
-                print(f"  Model {j}: {model2}")
-                print(f"  Matrix Distance: {dist:.3f}")
-                print("-" * 40)
-                if "random" in model1 or "random" in model2:
-                    print(f"\033[33m  ⚠️ Warning: Includes random set!\033[0m")
+#                 print(f"{color}Similarity: {similarity:.2f}\033[0m")
+#                 print(f"  Model {i}: {model1}")
+#                 print(f"  Model {j}: {model2}")
+#                 print(f"  Matrix Distance: {dist:.3f}")
+#                 print("-" * 40)
+#                 if "random" in model1 or "random" in model2:
+#                     print(f"\033[33m  ⚠️ Warning: Includes random set!\033[0m")
     
-    # Add scheme-specific legend
-    print(f"\nLegend ({color_scheme.value}):")
-    print(f"{colors['highlight']}Highlighted Rows/Cols\033[0m: Selected sets")
-    print(f"{colors['strong']}>= 0.5\033[0m "
-          f"{colors['medium']}>= 0.3\033[0m "
-          f"{colors['weak']}>= 0.1\033[0m "
-          f"{colors['minimal']}> 0.0\033[0m: Match strength")
+#     # Add scheme-specific legend
+#     print(f"\nLegend ({color_scheme.value}):")
+#     print(f"{colors['highlight']}Highlighted Rows/Cols\033[0m: Selected sets")
+#     print(f"{colors['strong']}>= 0.5\033[0m "
+#           f"{colors['medium']}>= 0.3\033[0m "
+#           f"{colors['weak']}>= 0.1\033[0m "
+#           f"{colors['minimal']}> 0.0\033[0m: Match strength")
     
-    print("\nNote: Lower distances between sets (real) vs (random)")
-    print("      indicate better recommendation quality")
-    print("=" * 40)
+#     print("\nNote: Lower distances between sets (real) vs (random)")
+#     print("      indicate better recommendation quality")
+#     print("=" * 40)
 
 
 
@@ -671,6 +669,7 @@ def test_local_llm_base_config_jaccard():
 
     summary = recommender_presenter(product.sku, [rec_sets[idx] for idx in most_similar])
     print(summary)
+    display_rec_matrix(rec_sets, models_used, most_similar)
 
 
 def test_local_llm_raw_1k_jaccard():
@@ -729,8 +728,7 @@ def test_local_llm_raw_1k_jaccard():
 
 
 def test_local_llm_bitrecs_5k_jaccard():
-    group_id = secrets.token_hex(16)
-    #products = product_1k()
+    group_id = secrets.token_hex(16)    
     products = product_5k()
     products = ProductFactory.dedupe(products)
     sku = safe_random.choice(products).sku
@@ -786,7 +784,8 @@ def test_local_llm_bitrecs_5k_jaccard():
         print(f"Model: {model}")
 
     report = recommender_presenter(sku, [rec_sets[idx] for idx in most_similar])
-    print(report)       
+    print(report)     
+    display_rec_matrix(rec_sets, models_used, most_similar)
 
 
 def test_local_llm_bitrecs_protocol_5k_jaccard():
@@ -800,6 +799,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
     
     config = TestConfig()
     rec_requests : List[BitrecsRequest] = []
+    models_used = []
     
     print(f"\n=== Protocol Recommendation Analysis ===")    
     print(f"This test is using {len(products)} products ")
@@ -823,8 +823,9 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
             models_used=[f"random-{i}"],
             miner_uid=str(safe_random.randint(10, 100)),
             miner_hotkey=secrets.token_hex(16)
-        )
+        )       
         rec_requests.append(req)
+        models_used.append(f"random-{i}")       
         print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
     
     print("\nGenerating model recommendations...")    
@@ -832,6 +833,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
     for model in battery:
         req = mock_br_request(products, group_id, sku, model, config.num_recs)
         rec_requests.append(req)
+        models_used.append(model)
         print(f"Set {model}: {[r['sku'] for r in req.results]}")
 
     # No threshold
@@ -912,6 +914,10 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
         print(report)
     else:        
         print(f"\033[31m No sets for threshold (>51%) {len(selected_sets)} \033[0m")
+
+    #display_rec_matrix(selected_sets, models_used, highlight_indices=[0, 1, 2, 3, 4], color_scheme=ColorScheme.VIRIDIS)
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
+    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
 
 
 def test_cloud_llm_bitrecs_protocol_1k_jaccard():

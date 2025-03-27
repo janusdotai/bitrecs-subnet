@@ -1,6 +1,5 @@
 import os
-
-from bitrecs.utils.misc import ttl_cache
+import time
 os.environ["NEST_ASYNCIO"] = "0"
 import pytest
 import sys
@@ -12,17 +11,18 @@ from random import SystemRandom
 safe_random = SystemRandom()
 from datetime import datetime
 from bitrecs.protocol import BitrecsRequest
-from dataclasses import asdict, dataclass
+from dataclasses import asdict
 from typing import List, Optional, Set
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
+from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (
-calculate_jaccard_distance, 
- select_most_similar_bitrecs, 
- select_most_similar_bitrecs_threshold, 
- select_most_similar_bitrecs_threshold2, 
- select_most_similar_sets
+    select_most_similar_sets,
+    calculate_jaccard_distance, 
+    select_most_similar_bitrecs, 
+    select_most_similar_bitrecs_threshold, 
+    select_most_similar_bitrecs_threshold2    
 )
 from dotenv import load_dotenv
 load_dotenv()
@@ -31,19 +31,20 @@ LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
 WARMUP_OLLAMA_MODEL = "mistral-nemo"
 
 #MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b", "llama3.1" ]
-MODEL_BATTERY = ["mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b" ]
-
 #MODEL_BATTERY = ["llama3.1:70b-instruct-q4_0", "qwen2.5:32b", "gemma3:27b", "nemotron:latest"]
-#MODEL_BATTERY = ["qwen2.5:32b", "gemma3:27b", "nemotron:latest", "phi4"]
-
-#3/26/2025  7 passed, 1 warning in 172.75s (0:02:52) 
-#3/26/2025  7 passed, 1 warning in 145.10s
+MODEL_BATTERY = ["qwen2.5:32b", "gemma3:27b", "nemotron:latest", "phi4"]
 
 CLOUD_BATTERY = ["deepseek/deepseek-chat-v3-0324",
                  "amazon/nova-lite-v1", "google/gemini-flash-1.5-8b",
-                 "x-ai/grok-2-1212", "openai/o1-mini-2024-09-12", "anthropic/claude-2.1",
-                 "google/gemini-2.0-flash-001"]
+                 "x-ai/grok-2-1212", "openai/chatgpt-4o-latest", "anthropic/claude-2.1",
+                 "google/gemini-2.0-flash-001", "anthropic/claude-3.7-sonnet",
+                 "openai/gpt-4o-mini-search-preview", "openai/gpt-4o-mini", "qwen/qwen-turbo"]
 #CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/gemini-2.0-flash-001"]
+
+
+
+#3/26/2025  7 passed, 1 warning in 172.75s (0:02:52) 
+#3/26/2025  7 passed, 1 warning in 145.10s
 
 
 class TestConfig:
@@ -83,17 +84,17 @@ def test_logger(request):
         f.write(f"\n=== Test Completed at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} ===\n")
 
 
-def product_woo():
-    woo_catalog = "./tests/data/woocommerce/product_catalog.csv" #2038 records
-    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, woo_catalog)
-    products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)
-    return products
+# def product_woo():
+#     woo_catalog = "./tests/data/woocommerce/product_catalog.csv" #2038 records
+#     catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, woo_catalog)
+#     products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)
+#     return products
 
-def product_shopify():
-    shopify_catalog = "./tests/data/shopify/electronics/shopify_products.csv"
-    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.SHOPIFY, shopify_catalog)
-    products = ProductFactory.convert(catalog, CatalogProvider.SHOPIFY)
-    return products
+# def product_shopify():
+#     shopify_catalog = "./tests/data/shopify/electronics/shopify_products.csv"
+#     catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.SHOPIFY, shopify_catalog)
+#     products = ProductFactory.convert(catalog, CatalogProvider.SHOPIFY)
+#     return products
 
 # def product_1k():
 #     catalog = "./tests/data/amazon/office/amazon_office_sample_1000.json"
@@ -119,84 +120,57 @@ def product_shopify():
 #     products = ProductFactory.convert(data, CatalogProvider.AMAZON)
 #     return products
 
-# #     rec_sets: List[BitrecsRequest], 
-# #     top_n: int = 2, 
-# #     similarity_threshold: float = 0.51
-# # ) -> Optional[List[BitrecsRequest]]:
-# #     """
-# #     Select most similar BitrecsRequest objects meeting similarity threshold.
-# #     Returns None if no pairs meet threshold.
-    
-# #     Args:
-# #         rec_sets: List of BitrecsRequest objects
-# #         top_n: Number of similar sets to return
-# #         similarity_threshold: Minimum similarity required
-# #     Returns:
-# #         List of similar BitrecsRequest objects or None if no matches
-# #     """
-# #     if len(rec_sets) < 2:
-# #         return None
-        
-# #     # Calculate similarities between all pairs
-# #     similar_pairs = []
-# #     for i in range(len(rec_sets)):
-# #         set1 = set(r['sku'] for r in rec_sets[i].results)
-# #         for j in range(i + 1, len(rec_sets)):
-# #             set2 = set(r['sku'] for r in rec_sets[j].results)
-            
-# #             # Calculate Jaccard similarity
-# #             intersection = len(set1 & set2)
-# #             union = len(set1 | set2)
-# #             similarity = intersection / union if union > 0 else 0.0
-            
-# #             if similarity >= similarity_threshold:
-# #                 similar_pairs.append((i, j, similarity))
-    
-# #     if not similar_pairs:
-# #         print(f"No pairs found above threshold {similarity_threshold}")
-# #         return None
-        
-# #     # Sort by similarity and get best pairs
-# #     similar_pairs.sort(key=lambda x: x[2], reverse=True)
-# #     selected = set()
-# #     result = []
-    
-# #     # Take best pairs until we have top_n requests
-# #     for i, j, sim in similar_pairs:
-# #         if len(result) >= top_n:
-# #             break
-# #         if i not in selected:
-# #             selected.add(i)
-# #             result.append(rec_sets[i])
-# #         if len(result) < top_n and j not in selected:
-# #             selected.add(j)
-# #             result.append(rec_sets[j])
-            
-# #     return result if result else None
+@ttl_cache(ttl=900)
+def product_1k() -> List[Product]:
+    asos_catalog = "./tests/data/asos/sample_1k.csv" 
+    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, asos_catalog)
+    products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)    
+    return products
 
+@ttl_cache(ttl=900)
+def product_5k() -> List[Product]:
+    asos_catalog = "./tests/data/asos/sample_5k.csv" 
+    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, asos_catalog)
+    products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)    
+    return products
 
-def product_1k():
+@ttl_cache(ttl=900)
+def product_10k_a() -> List[Product]:
+    asos_catalog = "./tests/data/asos/sample_10k.csv" 
+    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, asos_catalog)
+    products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)    
+    return products
+
+@ttl_cache(ttl=900)
+def product_20k() -> List[Product]:
+    asos_catalog = "./tests/data/asos/asos_30k_trimmed.csv" 
+    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, asos_catalog)
+    products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)    
+    return products
+
+@ttl_cache(ttl=900)
+def product_1k_a() -> List[Product]:
     walmart_catalog = "./tests/data/walmart/wallmart_1k_kaggle_trimmed.csv" 
     catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WALMART, walmart_catalog)
     products = ProductFactory.convert(catalog, CatalogProvider.WALMART)    
     return products
 
-@ttl_cache(ttl=45)
-def product_5k():
+@ttl_cache(ttl=900)
+def product_5k_a() -> List[Product]:
     walmart_catalog = "./tests/data/walmart/wallmart_5k_kaggle_trimmed.csv"
     catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WALMART, walmart_catalog)
     products = ProductFactory.convert(catalog, CatalogProvider.WALMART)
     return products
 
-@ttl_cache(ttl=45)
-def product_20k():   
+@ttl_cache(ttl=900)
+def product_20k_a() -> List[Product]:   
     walmart_catalog = "./tests/data/walmart/wallmart_30k_kaggle_trimmed.csv" #30k records
     catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WALMART, walmart_catalog)
     products = ProductFactory.convert(catalog, CatalogProvider.WALMART)    
     return products    
 
 
-def get_rec(products, sku, model=None, num_recs=5) -> list:
+def get_rec(products, sku, model=None, num_recs=5) -> List:
     if not sku or not products:
         raise ValueError("sku and products are required")
     products = ProductFactory.dedupe(products)
@@ -227,7 +201,7 @@ def get_rec(products, sku, model=None, num_recs=5) -> list:
     return parsed_recs
 
 
-def get_rec_fake(sku, num_recs=5) -> list:
+def get_rec_fake(sku, num_recs=5) -> List:
     if not sku:
         raise ValueError("sku is required")
     products = product_1k()
@@ -379,8 +353,7 @@ def product_name_by_sku_trimmed(sku: str, take_length: int = 50, products = None
 
 def display_rec_matrix(rec_sets: List[Set[str]], models_used: List[str]):
     print(f"total of {len(rec_sets)} sets")
-    config = TestConfig()
-    # Calculate Jaccard distances between all pairs with aligned columns
+    config = TestConfig()    
     for i in range(len(rec_sets)):
         row = f"{i:4d}"
         for j in range(len(rec_sets)):
@@ -393,13 +366,7 @@ def display_rec_matrix(rec_sets: List[Set[str]], models_used: List[str]):
     
     print("\nNote: Lower distances between sets (real) vs (random)")
     print("      indicate better recommendation quality")
-    print("=" * 40)
-
-    # Verify all distances are valid
-    for i in range(len(rec_sets)):
-        for j in range(i + 1, len(rec_sets)):
-            distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
-            #assert 0 <= distance <= 1
+    print("=" * 40)    
 
     print("\nSelecting most similar sets:")
     most_similar = select_most_similar_sets(rec_sets, top_n=config.top_n)
@@ -408,10 +375,6 @@ def display_rec_matrix(rec_sets: List[Set[str]], models_used: List[str]):
     for idx in most_similar:
         model_used = models_used[idx]
         print(f"Set {idx}: {sorted(list(rec_sets[idx]))} - \033[32m {model_used} \033[0m")
-
-    # Verify that the most similar sets are the real ones
-    # for idx in most_similar:
-    #     assert idx <= config.real_set_count
     
     print("\nVerifying recommendation quality:")
     print("=" * 60)    
@@ -481,7 +444,6 @@ def test_local_llm_bitrecs_mock_ok():
     assert mock_request.miner_uid is not None
     assert mock_request.miner_hotkey is not None
     assert mock_request.site_key == group_id
-
 
 
 def test_local_llm_base_config_jaccard():
@@ -602,7 +564,6 @@ def test_local_llm_base_config_jaccard():
     print(summary)
 
 
-
 def test_local_llm_raw_1k_jaccard():
     """Test recommendation sets using Jaccard similarity with model tracking"""
     group_id = secrets.token_hex(16)
@@ -656,7 +617,6 @@ def test_local_llm_raw_1k_jaccard():
         model = rec_tracking[idx][1]
         is_random = model.startswith("random-")
         assert not is_random, f"Selected set {idx} is random, expected real model"
-    
 
 
 def test_local_llm_bitrecs_5k_jaccard():
@@ -703,6 +663,8 @@ def test_local_llm_bitrecs_5k_jaccard():
         models_used.append(model)     
         
     print("\nFinished generating rec sets")  
+    print(f"A total of {len(rec_sets)} sets")
+    
     most_similar = select_most_similar_sets(rec_sets, top_n=config.top_n)
     assert most_similar is not None
     assert len(most_similar) == config.top_n
@@ -843,8 +805,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
         print(f"\033[31m No sets for threshold (>51%) {len(selected_sets)} \033[0m")
 
 
-
-def test_cloud_llm_bitrecs_protocol_5k_jaccard():
+def test_cloud_llm_bitrecs_protocol_1k_jaccard():
     """Test cloud recommendation sets using BitrecsRequest protocol"""
     group_id = secrets.token_hex(16)
     products = product_1k()
@@ -918,7 +879,7 @@ def test_cloud_llm_bitrecs_protocol_5k_jaccard():
                                                            top_n=config.top_n, 
                                                            similarity_threshold=good_threshold)
  
-    print("\nFinished generating rec sets") 
+    print("\nFinished generating rec sets")
     print("Selected sets:")
     for req in most_similar:
         model = req.models_used[0]
@@ -973,6 +934,344 @@ def test_cloud_llm_bitrecs_protocol_5k_jaccard():
         print(report)
     else:
         print(f"\nNo results for threshold (>51%) out of {len(selected_sets)} sets ")
+
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
+    display_rec_matrix(rec_sets, models_used)    
+
+
+def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
+    """Test cloud / local recommendation sets using BitrecsRequest protocol"""
+    group_id = secrets.token_hex(16)
+    products = product_1k()
+    #products = product_5k()
+    products = ProductFactory.dedupe(products)
+    selected_product = safe_random.choice(products)
+    sku = selected_product.sku
+    
+    config = TestConfig()
+    rec_requests : List[BitrecsRequest] = []
+    models_used = []    
+    
+    print(f"\n=== Protocol Recommendation Analysis ===")    
+    print(f"This test is using {len(products)} products ")
+    print(f"Original Product:")
+    print(f"SKU: \033[32m {sku} \033[0m")
+    print(f"Name: \033[32m {selected_product.name} \033[0m")
+    print(f"Price: ${selected_product.price}")    
+    
+    print("\nGenerating random recommendations...")
+    for i in range(config.fake_set_count):
+        fake_recs = get_rec_fake(sku, config.num_recs)
+        fake_model = f"random-{i}"
+        req = BitrecsRequest(
+            created_at=datetime.now().isoformat(),
+            user="test_user",
+            num_results=config.num_recs,
+            query=sku,
+            context="[]",
+            site_key=group_id,
+            results=[{"sku": r.sku} for r in fake_recs],
+            models_used=[fake_model],
+            miner_uid=str(safe_random.randint(10, 100)),
+            miner_hotkey=secrets.token_hex(16)
+        )
+        rec_requests.append(req)
+        models_used.append(fake_model)
+        print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
+    
+    print("\nGenerating cloud recommendations...")
+    battery = CLOUD_BATTERY[:5]
+    #battery = CLOUD_BATTERY
+    safe_random.shuffle(battery)
+    for model in battery:
+        try:            
+            req = mock_br_request_cloud(products, group_id, sku, model, config.num_recs)
+            rec_requests.append(req)
+            print(f"Set {model}: {[r['sku'] for r in req.results]}")
+            models_used.append(model)
+        except Exception as e:
+            print(f"SKIPPED - Error with model {model}: {e}")
+            continue   
+    
+    print("\nGenerating Local recommendations...")
+    local_battery = MODEL_BATTERY[:3]
+    #local_battery = MODEL_BATTERY
+    safe_random.shuffle(local_battery)
+    for model in local_battery:
+        try:
+            mock_req = mock_br_request(products, group_id, sku, model, config.num_recs)
+            rec_requests.append(mock_req)
+            print(f"Set {model}: {[r['sku'] for r in mock_req.results]}")
+            models_used.append(model)
+        except Exception as e:
+            print(f"SKIPPED - Error with model {model}: {e}")
+            continue
+
+    # No threshold
+    most_similar = select_most_similar_bitrecs(rec_requests, top_n=config.top_n)
+    assert most_similar is not None
+    assert len(most_similar) == config.top_n
+
+    # 10% with threshold
+    low_threshold = 0.10
+    most_similar2 = select_most_similar_bitrecs_threshold(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=low_threshold)  
+
+    # 33% or null
+    med_threshold = 0.33
+    most_similar3 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=med_threshold)
+    
+    good_threshold = 0.51
+    most_similar4 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=good_threshold)
+    
+    great_threshold = 0.80
+    most_similar5 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=great_threshold)
+ 
+    print("\nFinished generating rec sets")
+    print("Selected sets:")
+    for req in most_similar:
+        model = req.models_used[0]
+        skus = [r['sku'] for r in req.results]
+        print(f"Model {model}:")
+        print(f"  SKUs: {sorted(skus)}")
+
+    print(f"\033[1;32m No Threshold \033[0m")
+    selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
+    report = recommender_presenter(sku, selected_sets)
+    print(report)
+
+    if most_similar2:
+        print("Selected sets:")
+        for req in most_similar2:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")      
+            
+        selected_sets2 = [set(r['sku'] for r in req.results) for req in most_similar2]
+        report = recommender_presenter(sku, selected_sets2)        
+        print(f"\033[1;32m Low Threshold {low_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"No sets found meeting threshold {low_threshold}")
+
+    if most_similar3:
+        print("Selected sets:")
+        for req in most_similar3:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets3 = [set(r['sku'] for r in req.results) for req in most_similar3]
+        report = recommender_presenter(sku, selected_sets3)
+        print(f"\033[1;32m Medium Threshold {med_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\033[31m Noo sets found meeting threshold {med_threshold} \033[0m")
+
+    if most_similar4:
+        print("Selected sets:")
+        for req in most_similar4:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets4 = [set(r['sku'] for r in req.results) for req in most_similar4]
+        report = recommender_presenter(sku, selected_sets4)
+        print(f"\033[1;32m Good Threshold {good_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\nNo results for threshold (>51%) out of {len(selected_sets)} sets ")
+
+    if most_similar5:
+        print("Selected sets:")
+        for req in most_similar5:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets5 = [set(r['sku'] for r in req.results) for req in most_similar5]
+        report = recommender_presenter(sku, selected_sets5)
+        print(f"\033[1;32m Great Threshold {great_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
+
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
+    display_rec_matrix(rec_sets, models_used)
+
+
+def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
+    """Test cloud / local recommendation sets using BitrecsRequest protocol"""
+    group_id = secrets.token_hex(16)
+    #products = product_1k()
+    products = product_5k()
+    products = ProductFactory.dedupe(products)
+    selected_product = safe_random.choice(products)
+    sku = selected_product.sku
+    
+    config = TestConfig()
+    rec_requests : List[BitrecsRequest] = []
+    models_used = []    
+    
+    print(f"\n=== Protocol Recommendation Analysis ===")    
+    print(f"This test is using {len(products)} products ")
+    print(f"Original Product:")
+    print(f"SKU: \033[32m {sku} \033[0m")
+    print(f"Name: \033[32m {selected_product.name} \033[0m")
+    print(f"Price: ${selected_product.price}")    
+    
+    print("\nGenerating random recommendations...")
+    for i in range(config.fake_set_count):
+        fake_recs = get_rec_fake(sku, config.num_recs)
+        fake_model = f"random-{i}"
+        req = BitrecsRequest(
+            created_at=datetime.now().isoformat(),
+            user="test_user",
+            num_results=config.num_recs,
+            query=sku,
+            context="[]",
+            site_key=group_id,
+            results=[{"sku": r.sku} for r in fake_recs],
+            models_used=[fake_model],
+            miner_uid=str(safe_random.randint(10, 100)),
+            miner_hotkey=secrets.token_hex(16)
+        )
+        rec_requests.append(req)
+        models_used.append(fake_model)
+        print(f"Set random-{i}: {[r['sku'] for r in req.results]}")
+    
+    print("\nGenerating cloud recommendations...")
+    battery = CLOUD_BATTERY[:3]
+    #battery = CLOUD_BATTERY
+    safe_random.shuffle(battery)
+    for model in battery:
+        try:            
+            req = mock_br_request_cloud(products, group_id, sku, model, config.num_recs)
+            rec_requests.append(req)
+            print(f"Set {model}: {[r['sku'] for r in req.results]}")
+            models_used.append(model)
+        except Exception as e:
+            print(f"SKIPPED - Error with model {model}: {e}")
+            continue   
+    
+    print("\nGenerating Local recommendations...")
+    local_battery = MODEL_BATTERY[:3]
+    #local_battery = MODEL_BATTERY
+    safe_random.shuffle(local_battery)
+    for model in local_battery:
+        try:
+            mock_req = mock_br_request(products, group_id, sku, model, config.num_recs)
+            rec_requests.append(mock_req)
+            print(f"Set {model}: {[r['sku'] for r in mock_req.results]}")
+            models_used.append(model)
+        except Exception as e:
+            print(f"SKIPPED - Error with model {model}: {e}")
+            continue
+
+    # No threshold
+    most_similar = select_most_similar_bitrecs(rec_requests, top_n=config.top_n)
+    assert most_similar is not None
+    assert len(most_similar) == config.top_n
+
+    # 10% with threshold
+    low_threshold = 0.10
+    most_similar2 = select_most_similar_bitrecs_threshold(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=low_threshold)  
+
+    # 33% or null
+    med_threshold = 0.33
+    most_similar3 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=med_threshold)
+    
+    good_threshold = 0.51
+    most_similar4 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=good_threshold)
+    
+    great_threshold = 0.80
+    most_similar5 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=great_threshold)
+ 
+    print("\nFinished generating rec sets")
+    print("Selected sets:")
+    for req in most_similar:
+        model = req.models_used[0]
+        skus = [r['sku'] for r in req.results]
+        print(f"Model {model}:")
+        print(f"  SKUs: {sorted(skus)}")
+
+    print(f"\033[1;32m No Threshold \033[0m")
+    selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
+    report = recommender_presenter(sku, selected_sets)
+    print(report)
+
+    if most_similar2:
+        print("Selected sets:")
+        for req in most_similar2:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")      
+            
+        selected_sets2 = [set(r['sku'] for r in req.results) for req in most_similar2]
+        report = recommender_presenter(sku, selected_sets2)        
+        print(f"\033[1;32m Low Threshold {low_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"No sets found meeting threshold {low_threshold}")
+
+    if most_similar3:
+        print("Selected sets:")
+        for req in most_similar3:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets3 = [set(r['sku'] for r in req.results) for req in most_similar3]
+        report = recommender_presenter(sku, selected_sets3)
+        print(f"\033[1;32m Medium Threshold {med_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\033[31m Noo sets found meeting threshold {med_threshold} \033[0m")
+
+    if most_similar4:
+        print("Selected sets:")
+        for req in most_similar4:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets4 = [set(r['sku'] for r in req.results) for req in most_similar4]
+        report = recommender_presenter(sku, selected_sets4)
+        print(f"\033[1;32m Good Threshold {good_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\nNo results for threshold (>51%) out of {len(selected_sets)} sets ")
+
+    if most_similar5:
+        print("Selected sets:")
+        for req in most_similar5:
+            model = req.models_used[0]
+            skus = [r['sku'] for r in req.results]
+            print(f"Model {model}:")
+            print(f"  SKUs: {sorted(skus)}")
+        selected_sets5 = [set(r['sku'] for r in req.results) for req in most_similar5]
+        report = recommender_presenter(sku, selected_sets5)
+        print(f"\033[1;32m Great Threshold {great_threshold} \033[0m")
+        print(report)
+    else:
+        print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
     display_rec_matrix(rec_sets, models_used)

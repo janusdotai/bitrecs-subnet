@@ -2,7 +2,6 @@ import os
 import re
 import json
 import bittensor as bt
-import json_repair
 import pandas as pd
 from abc import abstractmethod
 from enum import Enum
@@ -45,9 +44,11 @@ class ProductFactory:
             
             df = pd.read_csv(file_path)
             #WooCommerce Format
-            columns = ["ID", "Type", "SKU", "Name", "Published", "Description", "In stock?", "Stock", "Regular price", "Categories"]            
+            columns = ["ID", "Type", "SKU", "Name", "Published", "Description", "In stock?", "Stock", "Regular price", "Categories"]
             df = df[[c for c in columns if c in df.columns]]            
-            df['Description'] = df['Description'].str.replace(r'<[^<>]*>', '', regex=True)
+            
+            if 'Description' in df.columns:
+                df['Description'] = df['Description'].str.replace(r'<[^<>]*>', '', regex=True)
             
             #Only take simple and variable products
             #product_types = ["simple", "variable"]
@@ -58,9 +59,11 @@ class ProductFactory:
             float_cols = df.select_dtypes(include=['float64']).columns
             df[float_cols] = df[float_cols].astype(object)
             df.fillna('', inplace=True)
+            
             # df = df.sort_values(by=['sku', 'name', 'price'], 
             #                   ascending=[True, True, True],
             #                   na_position='last')
+
             df = df.sort_values(by=['name', 'price'], 
                             ascending=[True, True],
                             na_position='last')
@@ -257,6 +260,7 @@ class WoocommerceConverter(BaseConverter):
                     continue
                 if price is None or price == 'None':
                     price = "0.00"
+                sku = str(sku)
                 price = str(price)
                 name = self.clean(name)
                 result.append(Product(sku=sku, name=name, price=price))
@@ -471,7 +475,7 @@ class WalmartConverter(BaseConverter):
                 continue
         return result
     
-    
+
     @staticmethod
     def tryload_catalog(file_path: str, max_rows=100_000) -> list:
         """

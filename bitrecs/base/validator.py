@@ -37,6 +37,7 @@ from bitrecs.base.utils.weight_utils import (
     process_weights_for_netuid,
     convert_weights_and_uids_for_emit, 
 )
+from bitrecs.commerce.product import ProductFactory
 from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
@@ -220,17 +221,23 @@ class BaseValidatorNeuron(BaseNeuron):
                 return
             for sim in most_similar:
                 bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
-            #selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
-            #report = recommender_presenter(sku, selected_sets)
-            #rec_sets = [set(r['sku'] for r in req.results) for req in requests]            
-            rec_sets = [set(r.sku for r in req.results) for req in requests]
-            models_used = [model for req in requests for model in req.models_used]
+            rec_sets = []
+            models_used = []
+            for response in requests:
+                try:                    
+                    recs = [r.sku for r in ProductFactory.try_parse_context(response.context)]
+                    #rec_sets.append(set(recs))
+                    rec_sets.append(recs)
+                    model = response.models_used[0] if response.models_used else "unknown"
+                    models_used.append(model)
+                except Exception as e:
+                    bt.logging.error(f"Error parsing response: {e}")
+                    continue
             display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
-
         except Exception as e:
             bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
-            return
-        
+            bt.logging.error(traceback.format_exc())
+            return        
         
 
     async def main_loop(self):

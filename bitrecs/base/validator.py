@@ -222,7 +222,8 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
             #selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
             #report = recommender_presenter(sku, selected_sets)
-            rec_sets = [set(r['sku'] for r in req.results) for req in requests]
+            #rec_sets = [set(r['sku'] for r in req.results) for req in requests]            
+            rec_sets = [set(r.sku for r in req.results) for req in requests]
             models_used = [model for req in requests for model in req.models_used]
             display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
 
@@ -296,10 +297,8 @@ class BaseValidatorNeuron(BaseNeuron):
                                 run_async=True
                             )
                         et = time.perf_counter()
-                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
-
-                        await self.analyze_similar_requests(responses)
-
+                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")                        
+                       
                         # Adjust the scores based on responses from miners.
                         rewards = get_rewards(num_recs=number_of_recs_desired,
                                               ground_truth=api_request,
@@ -315,8 +314,11 @@ class BaseValidatorNeuron(BaseNeuron):
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
                             continue
-                            
-                        selected_rec = rewards.argmax()
+                        
+                        await self.analyze_similar_requests(responses)
+
+                        # Select bitrec for the user
+                        selected_rec = rewards.argmax() #TODO: change
                         elected = responses[selected_rec]
                         elected.context = "" #save bandwidth
 

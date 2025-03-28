@@ -1,4 +1,5 @@
 import json
+import json_repair
 from enum import Enum
 from typing import List, Optional, Set
 from bitrecs.protocol import BitrecsRequest
@@ -71,10 +72,57 @@ def select_most_similar_bitrecs(rec_sets: List[BitrecsRequest], top_n: int = 2) 
     Returns:
         List of most similar BitrecsRequest objects
     """
+    return select_most_similar_bitrecs_safe(rec_sets, top_n)
+    # if len(rec_sets) < 2:
+    #     return rec_sets
+    # sku_sets = [set(r['sku'] for r in req.results) for req in rec_sets]
+    # sim = select_most_similar_sets(sku_sets, top_n)    
+    # return [rec_sets[i] for i in sim]
+
+def rec_list_to_set(recs: list) -> Set[str]:
+    """
+    Convert a list of recommendations to a set of SKUs.
+    
+    Args:
+        recs: List of recommendations (can be dicts or strings)
+    Returns:
+        Set of SKUs
+    """
+    sku_set = set()
+    for item in recs:
+        if isinstance(item, dict) and 'sku' in item:
+            sku_set.add(item['sku'])
+        elif isinstance(item, str):       
+            product = json_repair.loads(item)
+            if isinstance(product, dict) and 'sku' in product:
+                sku_set.add(product['sku'])
+        else:
+            print(f"Invalid item type in results: {item}")
+    return sku_set
+
+
+def select_most_similar_bitrecs_safe(rec_sets: List[BitrecsRequest], top_n: int = 2) -> List[BitrecsRequest]:
+    """
+    Select most similar BitrecsRequest objects based on their SKU recommendations.
+    
+    Args:
+        rec_sets: List of BitrecsRequest objects
+        top_n: Number of similar sets to return
+    Returns:
+        List of most similar BitrecsRequest objects
+    """
     if len(rec_sets) < 2:
         return rec_sets
-    sku_sets = [set(r['sku'] for r in req.results) for req in rec_sets]        
-    sim = select_most_similar_sets(sku_sets, top_n)    
+    
+    sku_sets = []
+    for req in rec_sets:
+        this_set = rec_list_to_set(req.results)
+        if this_set:
+            sku_sets.append(this_set)
+    if not sku_sets:
+        print("No valid SKUs found in results")
+        return []
+    sim = select_most_similar_sets(sku_sets, top_n)
     return [rec_sets[i] for i in sim]
 
 

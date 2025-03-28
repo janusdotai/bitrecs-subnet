@@ -18,7 +18,6 @@
 
 import os
 import copy
-import json_repair
 import numpy as np
 import asyncio
 import argparse
@@ -29,10 +28,9 @@ import traceback
 import anyio.to_thread
 import wandb
 import anyio
-import json
 from random import SystemRandom
 safe_random = SystemRandom()
-from typing import List, Set, Union, Optional
+from typing import List, Union, Optional
 from dataclasses import dataclass
 from queue import SimpleQueue, Empty
 from bitrecs.base.neuron import BaseNeuron
@@ -44,8 +42,8 @@ from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
-from bitrecs.utils.distance import display_rec_matrix_str, select_most_similar_bitrecs
-from bitrecs.validator.reward import get_rewards, validate_result_schema
+from bitrecs.utils.distance import display_rec_matrix_str, rec_list_to_set, select_most_similar_bitrecs_safe
+from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (
     log_miner_responses, 
@@ -210,30 +208,6 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
-    def extract_skus_from_results(self, results: list) -> Set[str]:
-        skus = set()        
-        for result in results:
-            try:
-                if isinstance(result, str):                    
-                    #product = json.loads(result)
-                    product = json_repair.loads(result)
-                    if isinstance(product, dict) and 'sku' in product:
-                        skus.add(product['sku'])
-                elif isinstance(result, dict) and 'sku' in result:                    
-                    skus.add(result['sku'])
-                elif isinstance(result, list):                    
-                    for item in result:
-                        if isinstance(item, dict) and 'sku' in item:
-                            skus.add(item['sku'])
-            except json.JSONDecodeError as e:
-                bt.logging.warning(f"Failed to parse JSON result: {e}")
-                continue
-            except Exception as e:
-                bt.logging.warning(f"Failed to extract SKU: {e}")
-                continue                
-        return skus
-
-
     async def analyze_similar_requests(self, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
         if not requests or len(requests) < 2:
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
@@ -253,15 +227,12 @@ class BaseValidatorNeuron(BaseNeuron):
             valid_requests = []
             valid_recs = []
             models_used = []
-            for br in requests:                
-                if not validate_result_schema(num_recs, br.results):
-                    bt.logging.warning(f"\033[1;33m Invalid schema for {br.miner_uid} with model {br.models_used} \033[0m")
-                    continue                                
+            for br in requests:                                            
                 try:
-                    skus = self.extract_skus_from_results(br.results)
+                    skus = rec_list_to_set(br.results)
                     if skus:
                         valid_requests.append(br)
-                        valid_recs.append(set(skus))
+                        valid_recs.append(skus)
                         models_used.append(br.models_used[0] if br.models_used else "unknown")
                 except Exception as e:
                     bt.logging.error(f"Error extracting SKUs from results: {e}")
@@ -273,7 +244,7 @@ class BaseValidatorNeuron(BaseNeuron):
             
             top_n = await get_dynamic_top_n(len(valid_requests))
             bt.logging.info(f"\033[1;32m Top N: {top_n} based on {len(valid_requests)} bitrecs \033[0m")
-            most_similar = select_most_similar_bitrecs(valid_requests, top_n)
+            most_similar = select_most_similar_bitrecs_safe(valid_requests, top_n)
             if not most_similar:
                 bt.logging.warning(f"\033[33m No similar recs found in this round step: {self.step} \033[0m")
                 return
@@ -369,15 +340,17 @@ class BaseValidatorNeuron(BaseNeuron):
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
                             synapse_with_event.event.set()
-                            continue
+                            continue                                                
                         
-                        #TODO: do not send back bad skus or empty results
-                        if np.all(rewards == 0):
+                        good_indices = np.where(rewards > 0)[0]
+                        if len(good_indices) > 0:
+                            good_responses = [responses[i] for i in good_indices]                            
+                            bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
+                            top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
+                        else:                            
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
                             continue
-                        
-                        top_k = await self.analyze_similar_requests(number_of_recs_desired, responses)
 
                         # Select bitrec for the user
                         selected_rec = rewards.argmax() #TODO: change

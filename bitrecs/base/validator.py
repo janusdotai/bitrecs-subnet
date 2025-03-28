@@ -31,7 +31,7 @@ import anyio
 import json
 from random import SystemRandom
 safe_random = SystemRandom()
-from typing import List, Union, Optional
+from typing import List, Set, Union, Optional
 from dataclasses import dataclass
 from queue import SimpleQueue, Empty
 from bitrecs.base.neuron import BaseNeuron
@@ -209,38 +209,26 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
-    def extract_skus_from_results(self, results: list) -> list:
-        """Helper function to extract SKUs from various result formats"""
-        
-        bt.logging.info(f"Extracting SKUs from results: {results}")
-        bt.logging.info(f"type: {type(results)}")
-        bt.logging.info(f"length {len(results)}")
-
-        skus = []
-        for r in results:
+    def extract_skus_from_results(self, results: list) -> Set[str]:
+        skus = set()        
+        for result in results:
             try:
-                # Case 1: Dictionary with 'sku' key
-                if isinstance(r, dict) and 'sku' in r:
-                    skus.append(str(r['sku']))
-                    continue
-                    
-                # Case 2: JSON string
-                if isinstance(r, str):
-                    try:
-                        parsed = json.loads(r)
-                        if isinstance(parsed, dict) and 'sku' in parsed:
-                            skus.append(str(parsed['sku']))
-                        elif isinstance(parsed, list):
-                            # Handle array of objects
-                            for item in parsed:
-                                if isinstance(item, dict) and 'sku' in item:
-                                    skus.append(str(item['sku']))
-                    except json.JSONDecodeError:
-                        continue
-                        
-            except Exception as e:
-                bt.logging.warning(f"Failed to extract SKU from result: {e}")
+                if isinstance(result, str):                    
+                    product = json.loads(result)
+                    if isinstance(product, dict) and 'sku' in product:
+                        skus.add(product['sku'])
+                elif isinstance(result, dict) and 'sku' in result:                    
+                    skus.add(result['sku'])
+                elif isinstance(result, list):                    
+                    for item in result:
+                        if isinstance(item, dict) and 'sku' in item:
+                            skus.add(item['sku'])
+            except json.JSONDecodeError as e:
+                bt.logging.warning(f"Failed to parse JSON result: {e}")
                 continue
+            except Exception as e:
+                bt.logging.warning(f"Failed to extract SKU: {e}")
+                continue                
         return skus
 
 
@@ -249,18 +237,11 @@ class BaseValidatorNeuron(BaseNeuron):
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
             return
         
-        async def get_dynamic_top_n(num_requests: int) -> int:
-            """
-            Calculate top_n based on number of requests
-            Rules:
-            - Minimum 2 pairs
-            - Maximum 33% of total requests
-            - Never more than 5 pairs
-            """
+        async def get_dynamic_top_n(num_requests: int) -> int:        
             if num_requests < 4:
                 return 2  # Minimum pairs
             # Calculate 33% of requests, rounded down
-            suggested = max(2, min(5, num_requests // 3))
+            suggested = max(2, min(5, num_requests // 3)) #5 max
             return suggested
 
         print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")    
@@ -273,11 +254,10 @@ class BaseValidatorNeuron(BaseNeuron):
             for br in requests:                
                 if not validate_result_schema(num_recs, br.results):
                     bt.logging.warning(f"\033[1;33m Invalid schema for {br.miner_uid} with model {br.models_used} \033[0m")
-                    continue
-                                
+                    continue                                
                 try:
                     skus = self.extract_skus_from_results(br.results)
-                    if skus:  # Only add if we got valid SKUs
+                    if skus:
                         valid_requests.append(br)
                         valid_recs.append(set(skus))
                         models_used.append(br.models_used[0] if br.models_used else "unknown")

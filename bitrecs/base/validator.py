@@ -223,11 +223,11 @@ class BaseValidatorNeuron(BaseNeuron):
         print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")    
         st = time.perf_counter()
         try:
-            requests = [r for r in requests if r.is_success]                        
+            requests = [r for r in requests if r.is_success]
             valid_requests = []
             valid_recs = []
             models_used = []
-            for br in requests:                                            
+            for br in requests:
                 try:
                     skus = rec_list_to_set(br.results)
                     if skus:
@@ -236,8 +236,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         models_used.append(br.models_used[0] if br.models_used else "unknown")
                 except Exception as e:
                     bt.logging.error(f"Error extracting SKUs from results: {e}")
-                    continue
-                    
+                    continue                    
             if not valid_recs:
                 bt.logging.error(f"\033[1;33m No valid recs found to analyze on step: {self.step} \033[0m")
                 return
@@ -342,18 +341,26 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue                                                
                         
+                        # Top score goes to client:
+                        selected_rec = rewards.argmax()
                         good_indices = np.where(rewards > 0)[0]
                         if len(good_indices) > 0:
-                            good_responses = [responses[i] for i in good_indices]                            
+                            good_responses = [responses[i] for i in good_indices]
                             bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
                             top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
+                            if top_k and 1==2: #Top score now pulled from top_k
+                                winner = safe_random.sample(top_k, 1)[0]
+                                bt.logging.info(f"top_k Select miner: {winner.miner_uid} with model {winner.models_used} - batch: {winner.site_key}")
+                                bt.logging.info(f"{winner.results}")
+                                selected_rec = responses.index(winner)
                         else:                            
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
                             continue
 
                         # Select bitrec for the user
-                        selected_rec = rewards.argmax() #TODO: change
+                        #selected_rec = rewards.argmax() #TODO: change
+                                                                        
                         elected = responses[selected_rec]
                         elected.context = "" #save bandwidth
 

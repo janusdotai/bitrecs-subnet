@@ -211,6 +211,11 @@ class BaseValidatorNeuron(BaseNeuron):
 
     def extract_skus_from_results(self, results: list) -> list:
         """Helper function to extract SKUs from various result formats"""
+        
+        bt.logging.info(f"Extracting SKUs from results: {results}")
+        bt.logging.info(f"type: {type(results)}")
+        bt.logging.info(f"length {len(results)}")
+
         skus = []
         for r in results:
             try:
@@ -240,7 +245,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
 
     async def analyze_similar_requests(self, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
-        if not requests or len(requests) < 2 or self.step < 1:
+        if not requests or len(requests) < 2:
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
             return
         

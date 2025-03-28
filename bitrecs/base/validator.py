@@ -238,8 +238,8 @@ class BaseValidatorNeuron(BaseNeuron):
                         valid_requests.append(br)
                         valid_recs.append(skus)
                         this_model = br.models_used[0] if br.models_used else "unknown"
-                        if dendrite_time < 0.5:
-                            this_model = f"{this_model} - DT"
+                        if dendrite_time < 0.7:
+                            this_model = f"{this_model} - ST"
                         models_used.append(this_model)
                         
                 except Exception as e:
@@ -356,12 +356,12 @@ class BaseValidatorNeuron(BaseNeuron):
                             good_responses = [responses[i] for i in good_indices]
                             bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
                             top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
-                            if top_k and 1==2: #Top score now pulled from top_k
+                            if top_k and 1==1: #Top score now pulled from top_k
                                 winner = safe_random.sample(top_k, 1)[0]
                                 bt.logging.info(f"\033[1;32m top_k Select miner: {winner.miner_uid} with model {winner.models_used} - batch: {winner.site_key} \033[0m")
                                 bt.logging.info(f"{winner.results}")
                                 selected_rec = responses.index(winner)
-                        else:                            
+                        else:
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
                             continue

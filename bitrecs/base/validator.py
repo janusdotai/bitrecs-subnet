@@ -18,6 +18,7 @@
 
 import os
 import copy
+import json_repair
 import numpy as np
 import asyncio
 import argparse
@@ -214,7 +215,8 @@ class BaseValidatorNeuron(BaseNeuron):
         for result in results:
             try:
                 if isinstance(result, str):                    
-                    product = json.loads(result)
+                    #product = json.loads(result)
+                    product = json_repair.loads(result)
                     if isinstance(product, dict) and 'sku' in product:
                         skus.add(product['sku'])
                 elif isinstance(result, dict) and 'sku' in result:                    

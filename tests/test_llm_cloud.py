@@ -10,7 +10,7 @@ from typing import Counter
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 #from bitrecs.llms.prompt_factory import PromptFactory
-from bitrecs.llms.prompt_factory2 import PromptFactory2 as PromptFactory
+from bitrecs.llms.prompt_factory import PromptFactory as PromptFactory
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -27,20 +27,24 @@ map = [
     #{"provider": LLM.OPEN_ROUTER, "model": "nvidia/llama-3.1-nemotron-70b-instruct"},
     #{"provider": LLM.OPEN_ROUTER, "model": "nousresearch/deephermes-3-llama-3-8b-preview:free"},
 
-    {"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-lite-v1"},    
-    #{"provider": LLM.OPEN_ROUTER, "model": "cohere/command-r7b-12-2024"},
-    #{"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-micro-v1"},    
+    {"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-lite-v1"},
+    {"provider": LLM.OPEN_ROUTER, "model": "x-ai/grok-2-1212"},
+    {"provider": LLM.OPEN_ROUTER, "model": "amazon/nova-micro-v1"},    
     {"provider": LLM.OPEN_ROUTER, "model": "google/gemini-flash-1.5-8b"},
-    #{"provider": LLM.OPEN_ROUTER, "model": "google/gemini-2.0-flash-lite-001"},  
-    #{"provider": LLM.OPEN_ROUTER, "model": "google/gemini-2.0-flash-001"},  
+    {"provider": LLM.OPEN_ROUTER, "model": "qwen/qwen-turbo"},
+    {"provider": LLM.OPEN_ROUTER, "model": "openai/gpt-4o-mini"},
     
     {"provider": LLM.GROK, "model": "grok-2-latest"},
     {"provider": LLM.GEMINI, "model": "gemini-1.5-flash-8b"},
     {"provider": LLM.CLAUDE, "model": "anthropic/claude-3.5-haiku"}
 ]
 
+# CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/gemini-2.0-flash-001",
+#                  "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini"]
+
 #CLOUD_PROVIDERS = [LLM.OPEN_ROUTER, LLM.GEMINI, LLM.CHAT_GPT, LLM.GROK, LLM.CLAUDE]
 CLOUD_PROVIDERS = [LLM.OPEN_ROUTER, LLM.GEMINI, LLM.CHAT_GPT]
+
 
 #LOCAL_PROVIDERS = [LLM.OLLAMA_LOCAL, LLM.VLLM]
 LOCAL_PROVIDERS = [LLM.OLLAMA_LOCAL]
@@ -211,8 +215,9 @@ def test_call_all_cloud_providers_warmup():
         # if count > 2:
         #     break
 
-        print(f"provider: {provider}")
-        model = [m for m in map if m["provider"] == provider][0]["model"]
+        print(f"provider: {provider}")        
+        model = safe_random.choice([m for m in map if m["provider"] == provider])["model"]
+        #model = [m for m in map if m["provider"] == provider][0]["model"]
         print(f"provider: {provider}")
         try:
             print(f"asked: {prompt}")
@@ -243,7 +248,7 @@ def test_call_all_cloud_providers_1k_woo_products():
     rp = safe_random.choice(products)
     user_prompt = rp.sku
     #num_recs = 3
-    num_recs = safe_random.choice([1, 5, 9, 10, 11, 16, 20])
+    num_recs = safe_random.choice([1, 3, 5, 6, 8])
     debug_prompts = False
 
     match = [products for products in products if products.sku == user_prompt][0]
@@ -264,7 +269,9 @@ def test_call_all_cloud_providers_1k_woo_products():
     print("********** LOOPING PROVIDERS ")
     success_count = 0
     for provider in CLOUD_PROVIDERS:
-        model = [m for m in map if m["provider"] == provider][0]["model"]
+        print(f"provider: {provider}")
+        #model = [m for m in map if m["provider"] == provider][0]["model"]
+        model = safe_random.choice([m for m in map if m["provider"] == provider])["model"]
         try:   
             st = time.time()         
             llm_response = LLMFactory.query_llm(server=provider,
@@ -332,7 +339,8 @@ def test_call_all_cloud_providers_1k_amazon_random():
     print("********** LOOPING PROVIDERS ")
     success_count = 0
     for provider in CLOUD_PROVIDERS:
-        model = [m for m in map if m["provider"] == provider][0]["model"]
+        #model = [m for m in map if m["provider"] == provider][0]["model"]
+        model = safe_random.choice([m for m in map if m["provider"] == provider])["model"]
         try:            
             llm_response = LLMFactory.query_llm(server=provider,
                                 model=model,

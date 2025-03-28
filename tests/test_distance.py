@@ -16,7 +16,7 @@ from typing import List, Optional, Set
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 #from bitrecs.llms.prompt_factory import PromptFactory
-from bitrecs.llms.prompt_factory2 import PromptFactory2 as PromptFactory
+from bitrecs.llms.prompt_factory import PromptFactory as PromptFactory
 from bitrecs.validator.reward import validate_result_schema
 
 from bitrecs.utils.misc import ttl_cache
@@ -807,14 +807,14 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
     
     config = TestConfig()
     rec_requests : List[BitrecsRequest] = []
-    models_used = []    
+    models_used = []
     
-    print(f"\n=== Protocol Recommendation Analysis ===")    
+    print(f"\n=== Protocol Recommendation Analysis ===")
     print(f"This test is using {len(products)} products ")
     print(f"Original Product:")
     print(f"SKU: \033[32m {sku} \033[0m")
     print(f"Name: \033[32m {selected_product.name} \033[0m")
-    print(f"Price: ${selected_product.price}")    
+    print(f"Price: ${selected_product.price}")
     
     print("\nGenerating random recommendations...")
     for i in range(config.fake_set_count):

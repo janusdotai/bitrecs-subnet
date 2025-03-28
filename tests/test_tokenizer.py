@@ -4,7 +4,7 @@ from random import SystemRandom
 safe_random = SystemRandom()
 from bitrecs.commerce.product import CatalogProvider, ProductFactory
 #from bitrecs.llms.prompt_factory import PromptFactory
-from bitrecs.llms.prompt_factory2 import PromptFactory2 as PromptFactory
+from bitrecs.llms.prompt_factory import PromptFactory as PromptFactory
 from dotenv import load_dotenv
 load_dotenv()
 

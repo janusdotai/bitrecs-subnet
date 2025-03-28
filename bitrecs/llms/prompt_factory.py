@@ -1,25 +1,44 @@
-import os
-import json
+
+
 import re
-import bittensor as bt
+import json
+import time
 import tiktoken
+import bittensor as bt
+from typing import List
 from datetime import datetime
+from bitrecs.commerce.product import Product, ProductFactory
 
 
 class PromptFactory:
-    """
-    Creates a bitrecs prompt for a given SKU and context.
-
-    Args:
-        sku (str): The SKU to generate recommendations for.
-        context (str): The context to generate recommendations from.
-        num_recs (int): The number of recommendations to generate.
-        load_catalog (bool): Whether to load the catalog from a file.
-        debug (bool): Whether to trace write the prompts.
-        season (str): The current season.
-        persona (str): The persona for the LLM to assume
     
-    """
+    PERSONAS = {
+        "luxury_concierge": {
+            "description": "an elite American Express-style luxury concierge with impeccable taste and a deep understanding of high-end products across all categories. You cater to discerning clients seeking exclusivity, quality, and prestige",
+            "tone": "sophisticated, polished, confident",
+            "response_style": "Recommend only the finest, most luxurious products with detailed descriptions of their premium features, craftsmanship, and exclusivity. Emphasize brand prestige and lifestyle enhancement",
+            "priorities": ["quality", "exclusivity", "brand prestige"]
+        },
+        "general_recommender": {
+            "description": "a friendly and practical product expert who helps customers find the best items for their needs, balancing seasonality, value, and personal preferences across a wide range of categories",
+            "tone": "warm, approachable, knowledgeable",
+            "response_style": "Suggest well-rounded products that offer great value, considering seasonal relevance and customer needs. Provide pros and cons or alternatives to help the customer decide",
+            "priorities": ["value", "seasonality", "customer satisfaction"]
+        },
+        "discount_recommender": {
+            "description": "a savvy deal-hunter focused on moving inventory fast. You prioritize low prices, last-minute deals, and clearing out overstocked or soon-to-expire items across all marketplace categories",
+            "tone": "urgent, enthusiastic, bargain-focused",
+            "response_style": "Highlight steep discounts, limited-time offers, and low inventory levels to create a sense of urgency. Focus on price savings and practicality over luxury or long-term value",
+            "priorities": ["price", "inventory levels", "deal urgency"]
+        },
+        "ecommerce_retail_store_manager": {
+            "description": "an experienced e-commerce retail store manager with a strategic focus on optimizing sales, customer satisfaction, and inventory turnover across a diverse marketplace",
+            "tone": "professional, practical, results-driven",
+            "response_style": "Provide balanced recommendations that align with business goals, customer preferences, and current market trends. Include actionable insights for product selection",
+            "priorities": ["sales optimization", "customer satisfaction", "inventory management"]
+        }
+    }
+
     def __init__(self, 
                  sku, 
                  context, 
@@ -27,7 +46,7 @@ class PromptFactory:
                  load_catalog=False, 
                  debug=False, 
                  season="spring/summer", 
-                 persona="Ecommerce Retail Store Manager"):
+                 persona="ecommerce_retail_store_manager"):
         self.sku = sku
         self.context = context
         self.num_recs = num_recs
@@ -37,90 +56,127 @@ class PromptFactory:
         self.debug = debug
         self.catalog = []
         self.season = "spring/summer" if not season else season
-        self.persona = "Ecommerce Retail Store Manager" if not persona else persona
+        self.persona = "ecommerce_retail_store_manager" if not persona else persona
+        
+        if self.persona not in self.PERSONAS:
+            raise ValueError(f"Invalid persona. Available personas: {', '.join(self.PERSONAS.keys())}")
+ 
 
+    def list_available_personas(self):
+        """Return a list of available personas."""
+        return list(self.PERSONAS.keys())
+        
+
+    def generate_prompt_with_cart(self, cart: List[Product]) -> str:
+        if len(cart) == 0:
+            raise ValueError("Cart cannot be empty")
+        self.cart = cart
+        self.update_context()
+        return self.generate_prompt()
     
+
+    def update_context(self) -> str:
+        raise NotImplementedError("update_context")
+        st = time.perf_counter()
+        if not self.context:
+            return ""
+        products = ProductFactory.try_parse_products(self.context)
+        if len(products) == 0:
+            return ""
+        for item in self.cart:
+            products = [p for p in products if p.sku != item.sku]
+        #products = [p for p in products if p.sku != self.sku] #TODO: llm assist 
+        et = time.perf_counter()
+        diff = et - st
+        bt.logging.info(f"Updated context in {diff} seconds")   
+        print(f"Updated context in {diff} seconds")     
+        products = sorted(products, key=lambda x: (x.name.lower(), x.price))
+        self.context = json.dumps([p.to_dict() for p in products])
+        return self.context
+
+
     def generate_prompt(self) -> str:
-        """
-            Generates a text prompt for the given SKU and context.
-        """
-    
+        """Generates a text prompt for product recommendations with persona details."""
         bt.logging.info("PROMPT generating prompt: {}".format(self.sku))
 
         today = datetime.now().strftime("%Y-%m-%d")
         season = self.season
-        persona = self.persona
+        persona_data = self.PERSONAS[self.persona]
 
-        prompt =f"""
-        # PERSONA:
+        prompt = f"""# PERSONA
+    <persona>{self.persona}</persona>
 
-        <persona>{persona}</persona>
+    You embody: {persona_data['description']}
+    Your mindset: {persona_data['tone']}
+    Your expertise: {persona_data['response_style']}
+    Core values: {', '.join(persona_data['priorities'])}
 
-        You are a {persona} with decades of experience providing product recommendations to customers.
-        You are goal oriented and your goal is to increase average order value and conversion rate for the store.
-        You have a deep understanding of the full product catalog in the store.
-        You have extensive knowledge of the products in the store and know each product attribute and how they contribute to the stores revenue.
-        When a customer buys X you recommended Y because they are often bought together or in succession.        
-        You do not show multiple colors or sizes of the same product (often called variants) in a set of recommendations.        
-        You also think outside the box and provide creative recommendations during different seasons.
-        The current season is: <season>{season}</season> and todays date is {today} .\n
-        
-        # INSTRUCTIONS
+    Your role:
+    - Increase average order value and conversion rate
+    - Use deep product catalog knowledge
+    - Understand product attributes and revenue impact
+    - Recommend complementary products (X → Y)
+    - Avoid variant duplicates (same product in different colors/sizes)
+    - Consider seasonal relevance
 
-        Given the <query> make a list of {self.num_recs} product recommendations from the <context> provided.
-    
-        Consider your <persona> before making your list of {self.num_recs} product recommendations. 
-        Only return products that exist in the <context> provided.
-        **Very important** you must only return products that exist in the context. 
-        Do not hallucinate.
+    Current season: <season>{season}</season>
+    Today's date: {today}
 
-        Here is the user query:
-        <query>
-        {self.sku}
-        </query>
-        """
+    # TASK
+    Given a product SKU, select {self.num_recs} complementary products from the provided context.
+    Use your persona qualities to THINK about which products to select, but return ONLY a JSON array.
+    Evaluate each products name and price fields when making your recommendations.
 
-        if self.context and len(self.context) > 10:
-            prompt += f"""\n
-            Here is the list of products you can select your recommendations from:
-            \n
-            <context>{self.context}</context>
-            \n
-            **Important** Only return product recommendations from the <context> provided.
-        """       
+    # INPUT
+    Query SKU: <query>{self.sku}</query>
 
-        prompt += f"""\n
-        # FINAL INSTRUCTIONS        
-        1) Load <persona> and <context> into your memory.
-        2) Observe the value in user <query> is a product 'sku' that has a matching product from the <context>. Find it by sku match and memorize its 'name' and 'price' fields.
-        3) Find {self.num_recs} unique products in the <context> that would go well with <query> and copy them to the return array.
-        4) Never recommend the same product as the one in the <query> in your final recommendations.
-        5) The order of the recommendations is important. The first recommendation should be the most profitable and relevant to the <query>.
-        6) Important information is in the 'name' field. Use this information to help make your recommendations.
-        7) Double check the potential return array for empty fields, invalid values, syntax errors, invalid string quotes, invalid characters.
-        8) Never explain yourself, no small talk, just return the final recommendations in the correct array format. 
-        9) Your final response should be a single JSON array of the recommendations.
-        10) Do not alter the context JSON, return all fields as they are.
-        11) Each recommendation should have a 'sku', 'name' and 'price' field.
-        12) Each recommendation should be unique (use 'sku' as the key field for uniqueness).
-        13) assert each recommendation is unique ('sku' is the key) and <query> not in recommendations.
-        14) assert len(recommendations) == {self.num_recs}. If not, start over until assert is true.
-        15) Never say 'Based on the provided query' or 'I have determined'. 
-        16) Never explain yourself and no smalltalk.
-        17) Return JSON.
-            
-        """
+    Available products:
+    <context>
+    {self.context}
+    </context>
+
+    # OUTPUT REQUIREMENTS
+    - Return ONLY a JSON array.
+    - Each object must have: sku, name, price.
+    - Important information is in the 'name' field. Use this information to help make your recommendations.
+    - Must return exactly {self.num_recs} items.
+    - Items must exist in context.
+    - No duplicates.
+    - Query SKU must not be included.
+    - Order by relevance/profitability.
+    - No explanations or text outside the JSON array.
+
+    Example format:
+    [
+        {{"sku": "ABC", "name": "Product Name", "price": "100"}},
+        {{"sku": "DEF", "name": "Another Product", "price": "200"}}
+    ]"""
 
         prompt_length = len(prompt)
         bt.logging.info(f"LLM QUERY Prompt length: {prompt_length}")
-        token_count = self.get_token_count(prompt)
+        token_count = PromptFactory.get_token_count(prompt)
         bt.logging.info(f"LLM QUERY Prompt Token count: {token_count}")
 
-        if self.debug:
-            bt.logging.debug("Prompt: {}".format(prompt))
+        if self.debug:            
+            bt.logging.debug(f"Persona: {self.persona}")
+            bt.logging.debug(f"Season {season}")
+            bt.logging.debug(f"Values: {', '.join(persona_data['priorities'])}")
+            bt.logging.debug(f"Prompt: {prompt}")
+            print(prompt)
 
         return prompt
-        
+    
+    
+    @staticmethod
+    def get_token_count(prompt: str, encoding_name: str = "o200k_base") -> int:        
+        encoding = tiktoken.get_encoding(encoding_name)        
+        tokens = encoding.encode(prompt)
+        return len(tokens)
+    
+    
+    @staticmethod
+    def get_word_count(prompt: str) -> int:
+        return len(prompt.split())
     
 
     @staticmethod
@@ -147,112 +203,3 @@ class PromptFactory:
         except Exception as e:
             bt.logging.error(str(e))
             return []
-        
-
-    @staticmethod
-    def get_token_count(prompt: str, encoding_name: str = "o200k_base") -> int:        
-        encoding = tiktoken.get_encoding(encoding_name)        
-        tokens = encoding.encode(prompt)
-        return len(tokens)
-    
-    
-    @staticmethod
-    def get_word_count(prompt: str) -> int:
-        return len(prompt.split())
-    
-
-class ExampleRecs:
-    
-    def example_recs() -> str:
-        e = """"
-        
-        #  Example Queries:
-        
-        - <query>MH01-S-Orange</query>
-        - <query>MH01-XL-Black</query>
-        - <query>Chaz Kangeroo Hoodie - XL, Black</query>
-        - <query>Chaz Kangeroo Hoodie - S, Orange</query>
-        - <query>MS04-XL-Red</query>
-        - <query>MS04-XS-Black</query>
-        - <query>MS07-XL-Black</query>
-        - <query>MS12</query>
-        - <query>MT02-L-White</query>
-        - <query>WS09-S-Red</query>
-        - <query>WS09-S-White</query>
-        - <query>WSH04-32-Green</query>
-        - <query>WSH04-32-Orange</query>
-        - <query>Breathe-Easy Tank</query>
-        - <query>Breathe-Easy Tank - L, Purple</query>    
-        - <query>Sprite Foam Yoga Brick</query>
-        - <query>24-WG084</query>
-        - <query>24-UG03</query>
-        \n
-        """
-        return e
-    
-    
-    def rt1() -> str:
-        return """ 
-        [
-            {
-                "sku": "MH01-S-Orange",         
-                "name": "Chaz Kangeroo Hoodie - S, Orange",                
-                "price" 52.00
-            },
-            {
-                "sku": "MH01-XL-Black",         
-                "name": "Chaz Kangeroo Hoodie - XL, Black",                
-                "price" 52.00        
-            },
-            {
-                "sku": "MS04-XL-Red",         
-                "name": "Gobi HeatTec&reg; Tee - XL, Red",                
-                "price" 29.00        
-            },
-            {
-                "sku": "MS04-XS-Black",         
-                "name": "Gobi HeatTec&reg; Tee - XS, Black",                
-                "price" 29.00        
-            },
-            {
-                "sku": "MS12",         
-                "name": "Atomic Endurance Running Tee (Crew-Neck)",                
-                "price" 29.00        
-            },
-            {
-                "sku": "MT02-L-White",         
-                "name": "Tristan Endurance Tank - L, White",                
-                "price" 29.00           
-            },
-            {
-                "sku": "WS09-S-Red",         
-                "name": "Tiffany Fitness Tee - S, Red",                
-                "price" 28.00           
-            },
-            {
-                "sku": "WSH04-32-Green",         
-                "name": "Artemis Running Short - 32, Green",                
-                "price" 45.00           
-            },
-            {
-                "sku": "WT09",         
-                "name": "Breathe-Easy TanK",                
-                "price" 34.00           
-            },
-            {
-                "sku": "WT09-L-Purple",         
-                "name": "Breathe-Easy Tank - L, Purple",                
-                "price" 34.00           
-            },
-            {
-                "sku": "24-WG084",         
-                "name": "Sprite Foam Yoga Brick",                
-                "price" 5.00           
-            },
-            {
-                "sku": "24-UG03",         
-                "name": "Harmony Lumaflex&trade; Strength Band Kit",                
-                "price" 22.00           
-            }
-
-        ]"""

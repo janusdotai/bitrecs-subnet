@@ -313,7 +313,7 @@ def test_call_all_cloud_providers_1k_amazon_random():
     products = ProductFactory.dedupe(raw_products)
     print(f"after de-dupe: {len(products)} records")
 
-    time.sleep(3)
+    time.sleep(1)
     rp = safe_random.choice(products)
     user_prompt = rp.sku
     #num_recs = 3
@@ -378,7 +378,7 @@ def test_call_multiple_open_router_1k_amazon_random():
     products = ProductFactory.dedupe(raw_products)
     print(f"after de-dupe: {len(products)} records")
 
-    time.sleep(3)
+    time.sleep(1)
     rp = safe_random.choice(products)
     user_prompt = rp.sku
     #num_recs = 3
@@ -453,7 +453,7 @@ def test_call_multiple_open_router_amazon_5k_random():
     products = ProductFactory.dedupe(raw_products)
     print(f"after de-dupe: {len(products)} records")
 
-    time.sleep(3)
+    time.sleep(1)
     rp = safe_random.choice(products)
     user_prompt = rp.sku
     #num_recs = 3

@@ -42,7 +42,7 @@ from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
-from bitrecs.utils.distance import display_rec_matrix_str, rec_list_to_set, select_most_similar_bitrecs_safe
+from bitrecs.utils.distance import display_rec_matrix, rec_list_to_set, select_most_similar_bitrecs_safe
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (
@@ -229,11 +229,19 @@ class BaseValidatorNeuron(BaseNeuron):
             models_used = []
             for br in requests:
                 try:
+                    headers = br.to_headers()
+                    dendrite_time = 0
+                    if "bt_header_dendrite_process_time" in headers:
+                        dendrite_time = float(headers["bt_header_dendrite_process_time"])
                     skus = rec_list_to_set(br.results)
                     if skus:
                         valid_requests.append(br)
                         valid_recs.append(skus)
-                        models_used.append(br.models_used[0] if br.models_used else "unknown")
+                        this_model = br.models_used[0] if br.models_used else "unknown"
+                        if dendrite_time < 0.5:
+                            this_model = f"{this_model} - DT"
+                        models_used.append(this_model)
+                        
                 except Exception as e:
                     bt.logging.error(f"Error extracting SKUs from results: {e}")
                     continue                    
@@ -250,7 +258,7 @@ class BaseValidatorNeuron(BaseNeuron):
             for sim in most_similar:
                 bt.logging.info(f"Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
             
-            matrix = display_rec_matrix_str(valid_recs, models_used, highlight_indices=most_similar)
+            matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar)
             #print(matrix)
             bt.logging.info(matrix)
 

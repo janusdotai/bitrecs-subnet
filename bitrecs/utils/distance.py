@@ -18,6 +18,28 @@ def calculate_jaccard_distance(set1: Set, set2: Set) -> float:
     return distance
 
 
+def rec_list_to_set(recs: list) -> Set[str]:
+    """
+    Convert a list of recommendations to a set of SKUs.
+    
+    Args:
+        recs: List of recommendations (can be dicts or strings)
+    Returns:
+        Set of SKUs
+    """
+    sku_set = set()
+    for item in recs:
+        if isinstance(item, dict) and 'sku' in item:
+            sku_set.add(item['sku'])
+        elif isinstance(item, str):       
+            product = json_repair.loads(item)
+            if isinstance(product, dict) and 'sku' in product:
+                sku_set.add(product['sku'])
+        else:
+            print(f"Invalid item type in results: {item}")
+    return sku_set
+
+
 def select_most_similar_sets(rec_sets: List[Set], top_n: int = 2) -> List[int]:
     """
     Select most similar sets based on Jaccard similarity.
@@ -79,27 +101,6 @@ def select_most_similar_bitrecs(rec_sets: List[BitrecsRequest], top_n: int = 2) 
     # sku_sets = [set(r['sku'] for r in req.results) for req in rec_sets]
     # sim = select_most_similar_sets(sku_sets, top_n)    
     # return [rec_sets[i] for i in sim]
-
-def rec_list_to_set(recs: list) -> Set[str]:
-    """
-    Convert a list of recommendations to a set of SKUs.
-    
-    Args:
-        recs: List of recommendations (can be dicts or strings)
-    Returns:
-        Set of SKUs
-    """
-    sku_set = set()
-    for item in recs:
-        if isinstance(item, dict) and 'sku' in item:
-            sku_set.add(item['sku'])
-        elif isinstance(item, str):       
-            product = json_repair.loads(item)
-            if isinstance(product, dict) and 'sku' in product:
-                sku_set.add(product['sku'])
-        else:
-            print(f"Invalid item type in results: {item}")
-    return sku_set
 
 
 def select_most_similar_bitrecs_safe(rec_sets: List[BitrecsRequest], top_n: int = 2) -> List[BitrecsRequest]:
@@ -297,23 +298,10 @@ class ColorPalette:
         }
     }
 
-# def display_rec_matrix(
-#     rec_sets: List[Set[str]], 
-#     models_used: List[str], 
-#     highlight_indices: List[int] = None,
-#     color_scheme: ColorScheme = ColorScheme.VIRIDIS
-# ) -> None:
-    
-#     matrix = display_rec_matrix_str(
-#         rec_sets,
-#         models_used,
-#         highlight_indices,
-#         color_scheme
-#     )
-#     print(matrix)    
 
 
-def display_rec_matrix_str(
+
+def display_rec_matrix(
     rec_sets: List[Set[str]], 
     models_used: List[str], 
     highlight_indices: List[int] = None,
@@ -381,11 +369,11 @@ def display_rec_matrix_str(
             else:
                 row.append("      -")
         
-        output.append(row_start + "".join(row))
+        output.append(row_start + "".join(row))    
     
-    # Add match summary with same color scheme
     if match_info:
-        output.append("\nSignificant Model Matches (Sorted by Similarity):")
+        output.append("-" * 60)
+        output.append("\nModel Matches:")
         output.append("-" * 60)
         for i, j, dist, model1, model2 in sorted(match_info, key=lambda x: (1 - x[2]), reverse=True):
             similarity = 1 - dist

@@ -24,7 +24,7 @@ from bitrecs.validator.reward import validate_result_schema
 from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (
     ColorScheme,    
-    display_rec_matrix_str,
+    display_rec_matrix,
     display_recommender_presenter,
     select_most_similar_bitrecs_safe,    
     select_most_similar_sets,
@@ -56,8 +56,8 @@ CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/ge
                  "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini"]
 
 
-_FIRST_GET_REC = True
-_FIRST_GET_MOCK_REC = True
+_FIRST_GET_REC = False
+_FIRST_GET_MOCK_REC = False
 
 DEBUG_ALL_PROMPTS = False
 
@@ -211,11 +211,15 @@ def get_rec(products, sku, model=None, num_recs=5) -> List:
         _FIRST_GET_REC = True
 
     llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
-                                 model=model, 
-                                 system_prompt="You are a helpful assistant", 
-                                 temp=0.0, user_prompt=prompt)    
-    parsed_recs = PromptFactory.tryparse_llm(llm_response) 
+                                 model=model,
+                                 system_prompt="You are a helpful assistant",
+                                 temp=0.0, user_prompt=prompt)
+    
+    print(f"LLM response: {llm_response}")
+
+    parsed_recs = PromptFactory.tryparse_llm(llm_response)
     assert len(parsed_recs) == num_recs
+    #print(f"Sku {sku} with model {model} = {parsed_recs}")
     return parsed_recs
 
 
@@ -226,6 +230,7 @@ def get_rec_fake(sku, num_recs=5) -> List:
     products = ProductFactory.dedupe(products)
     result = safe_random.sample(products, num_recs)    
     final = [thing.to_dict() for thing in result]
+    #print(f"Sku {sku} with model RANDOM = {final}")
     return final
 
 
@@ -282,6 +287,7 @@ def mock_br_request(products: List[Product],
         miner_uid=str(safe_random.randint(10, 1000)),
         miner_hotkey=secrets.token_hex(16)
     )
+    #print(f"Sku {sku} with {model} = {parsed_recs}")
     return m
 
 
@@ -319,7 +325,7 @@ def mock_br_request_cloud(products: List[Product],
                                  temp=0.0, user_prompt=prompt)    
     parsed_recs = PromptFactory.tryparse_llm(llm_response) 
     assert len(parsed_recs) == num_recs
-
+    
     m = BitrecsRequest(
         created_at=datetime.now().isoformat(),
         user="test_user",
@@ -332,6 +338,7 @@ def mock_br_request_cloud(products: List[Product],
         miner_uid=str(safe_random.randint(10, 1000)),
         miner_hotkey=secrets.token_hex(16)
     )
+    #print(f"Sku {sku} with {model} = {parsed_recs}")
     return m
 
 
@@ -545,7 +552,7 @@ def test_local_llm_base_config_jaccard():
     summary = recommender_presenter(product.sku, [rec_sets[idx] for idx in most_similar])
     print(summary)
     
-    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
 
 
@@ -663,7 +670,7 @@ def test_local_llm_bitrecs_5k_jaccard():
     report = recommender_presenter(sku, [rec_sets[idx] for idx in most_similar])
     print(report)     
     
-    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
 
 
@@ -796,7 +803,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
 
     
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]    
-    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
 
 
@@ -933,7 +940,7 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"\nNo results for threshold (>51%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]    
-    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
 
 
@@ -1103,7 +1110,7 @@ def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
 
 
@@ -1273,7 +1280,7 @@ def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
         print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]    
-    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
 
 
@@ -1379,7 +1386,7 @@ def test_local_llm_bitrecs_protocol_with_randos():
     print(report)    
  
     all_sets = [set(r["sku"] for r in req.results) for req in rec_sets]
-    matrix = display_rec_matrix_str(all_sets, models_used, highlight_indices=most_similar, 
+    matrix = display_rec_matrix(all_sets, models_used, highlight_indices=most_similar, 
                                     color_scheme=ColorScheme.VIRIDIS)
     print(matrix)
 
@@ -1459,7 +1466,7 @@ def analyze_similar_requests(step, num_recs: int, requests: List[BitrecsRequest]
             bt.logging.error(f"\033[1;33m No valid recs found in this round step: {step} \033[0m")
             return        
         
-        matrix = display_rec_matrix_str(valid_recs, models_used, highlight_indices=most_similar)                                    
+        matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar)                                    
         print(matrix)
         bt.logging.info(matrix)
 

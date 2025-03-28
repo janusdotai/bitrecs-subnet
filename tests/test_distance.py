@@ -1,11 +1,14 @@
 
 import os
+import time
+import traceback
 os.environ["NEST_ASYNCIO"] = "0"
 import pytest
 import sys
 import json
 import secrets
 import datetime
+import bittensor as bt
 from pathlib import Path
 from random import SystemRandom
 safe_random = SystemRandom()
@@ -66,7 +69,7 @@ class TestConfig:
 
 
 @pytest.fixture(autouse=True)
-def test_logger(request):
+def test_logger(request: pytest.FixtureRequest):
     """Fixture to capture print statements and write to timestamped log file."""    
     log_dir = Path("./tests", "test_logs")
     log_dir.mkdir(exist_ok=True)
@@ -1378,5 +1381,91 @@ def test_local_llm_bitrecs_protocol_with_randos():
                                     color_scheme=ColorScheme.VIRIDIS)
     print(matrix)
 
+    print(f"\n\n\n")
+    candidates = analyze_similar_requests(1, config.num_recs, rec_sets)
+    if candidates:
+        print(f"{len(candidates)} Top Candidates: {candidates}")
+        for c in candidates:
+            skus = [sku["sku"] for sku in c.results]
+            print(f"Candidate {c.miner_uid} - {c.models_used} - SKUs: {skus}")
+        
 
 
+
+
+def analyze_similar_requests(step, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
+    if not requests or len(requests) < 2 or step < 1:
+        print(f"Too few requests to analyze: {len(requests)}")
+        bt.logging.warning(f"Too few requests to analyze: {len(requests)}")
+        return
+
+    def list_to_json(results: List) -> List[str]:
+        final = []
+        for item in results:
+            thing = json.dumps(item)
+            final.append(thing)
+        return final
+    
+    def get_dynamic_top_n(num_requests: int) -> int:
+        """
+        Calculate top_n based on number of requests
+        Rules:
+        - Minimum 2 pairs
+        - Maximum 33% of total requests
+        - Never more than 5 pairs
+        """
+        if num_requests < 4:
+            return 2  # Minimum pairs
+        # Calculate 33% of requests, rounded down
+        suggested = max(2, min(5, num_requests // 3))
+        return suggested
+
+    print(f"Starting analyze_similar_requests with step: {step} and num_recs: {num_recs}")    
+    st = time.perf_counter()
+    try:
+        #top_n = 3              
+        top_n = get_dynamic_top_n(len(requests))
+        print(f"\033[1;32m Top N: {top_n} based on {len(requests)} bitrecs \033[0m")
+        bt.logging.info(f"\033[1;32m Top N: {top_n} based on {len(requests)} bitrecs \033[0m")
+        most_similar = select_most_similar_bitrecs(requests, top_n)
+        if not most_similar:
+            print(f"\033[33m No similar recs found in this round step: {step} \033[0m")
+            bt.logging.warning(f"\033[33m No similar recs found in this round step: {step} \033[0m")
+            return
+        for sim in most_similar:
+            print(f"Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+            bt.logging.info(f"Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+        
+        valid_recs = []
+        models_used = []
+        for br in requests:
+            thing = list_to_json(br.results)
+            valid_schema = validate_result_schema(num_recs, thing)
+            if not valid_schema:
+                print(f"\033[1;33m Invalid schema for {br.miner_uid} with model {br.models_used} \033[0m")
+                bt.logging.warning(f"\033[1;33m Invalid schema for {br.miner_uid} with model {br.models_used} \033[0m")
+                continue
+            skus = [r["sku"] for r in br.results]
+            valid_recs.append(set(skus))
+            models_used.append(br.models_used[0])
+        if not valid_recs:
+            print(f"\033[1;33m No valid recs found in this round step: {step} \033[0m")
+            bt.logging.error(f"\033[1;33m No valid recs found in this round step: {step} \033[0m")
+            return        
+        
+        matrix = display_rec_matrix_str(valid_recs, models_used, highlight_indices=most_similar)                                    
+        print(matrix)
+        bt.logging.info(matrix)
+
+        et = time.perf_counter()
+        diff = et - st
+        print(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
+        bt.logging.info(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
+
+        return most_similar
+    except Exception as e:
+        print(f"analyze_similar_requests failed with exception: {e}")
+        bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
+        print(traceback.format_exc())
+        bt.logging.error(traceback.format_exc())
+        return

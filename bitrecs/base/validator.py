@@ -28,7 +28,9 @@ import traceback
 import anyio.to_thread
 import wandb
 import anyio
-
+import json
+from random import SystemRandom
+safe_random = SystemRandom()
 from typing import List, Union, Optional
 from dataclasses import dataclass
 from queue import SimpleQueue, Empty
@@ -37,13 +39,12 @@ from bitrecs.base.utils.weight_utils import (
     process_weights_for_netuid,
     convert_weights_and_uids_for_emit, 
 )
-from bitrecs.commerce.product import ProductFactory
 from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
-#from bitrecs.utils.distance import select_most_similar_bitrecs_threshold2
-from bitrecs.validator.reward import get_rewards
+from bitrecs.utils.distance import display_rec_matrix_str, select_most_similar_bitrecs
+from bitrecs.validator.reward import get_rewards, validate_result_schema
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (
     log_miner_responses, 
@@ -208,24 +209,83 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
-    # async def analyze_similar_requests(self, requests: List[BitrecsRequest]):        
-    #     if not requests or len(requests) < 2:
-    #         bt.logging.info(f"Too few requests to analyze: {len(requests)}")
-    #         return
-    #     try:
-    #         top_k = 2
-    #         threshold = 0.05
-    #         most_similar = select_most_similar_bitrecs_threshold2(requests, top_k, threshold)
-    #         if not most_similar:
-    #             bt.logging.info(f"No similar recs found in this round step: {self.step}")
-    #             return
-    #         for sim in most_similar:
-    #             bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
-    #         #display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
-    #     except Exception as e:
-    #         bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
-    #         bt.logging.error(traceback.format_exc())
-    #         return
+
+    async def analyze_similar_requests(self, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
+        if not requests or len(requests) < 2 or self.step < 1:
+            #print(f"Too few requests to analyze: {len(requests)}")
+            bt.logging.warning(f"Too few requests to analyze: {len(requests)}")
+            return
+
+        async def list_to_json(results: List) -> List[str]:
+            final = []
+            for item in results:
+                thing = json.dumps(item)
+                final.append(thing)
+            return final
+        
+        async def get_dynamic_top_n(num_requests: int) -> int:
+            """
+            Calculate top_n based on number of requests
+            Rules:
+            - Minimum 2 pairs
+            - Maximum 33% of total requests
+            - Never more than 5 pairs
+            """
+            if num_requests < 4:
+                return 2  # Minimum pairs
+            # Calculate 33% of requests, rounded down
+            suggested = max(2, min(5, num_requests // 3))
+            return suggested
+
+        print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")    
+        st = time.perf_counter()
+        try:
+            #top_n = 3              
+            top_n = await get_dynamic_top_n(len(requests))
+            #print(f"\033[1;32m Top N: {top_n} based on {len(requests)} bitrecs \033[0m")
+            bt.logging.info(f"\033[1;32m Top N: {top_n} based on {len(requests)} bitrecs \033[0m")
+            most_similar = select_most_similar_bitrecs(requests, top_n)
+            if not most_similar:
+                #print(f"\033[33m No similar recs found in this round step: {step} \033[0m")
+                bt.logging.warning(f"\033[33m No similar recs found in this round step: {self.step} \033[0m")
+                return
+            for sim in most_similar:
+                #print(f"Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+                bt.logging.info(f"Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+            
+            valid_recs = []
+            models_used = []
+            for br in requests:
+                thing = await list_to_json(br.results)
+                valid_schema = validate_result_schema(num_recs, thing)
+                if not valid_schema:
+                    #print(f"\033[1;33m Invalid schema for {br.miner_uid} with model {br.models_used} \033[0m")
+                    bt.logging.warning(f"\033[1;33m Invalid schema for {br.miner_uid} with model {br.models_used} \033[0m")
+                    continue
+                skus = [r["sku"] for r in br.results]
+                valid_recs.append(set(skus))
+                models_used.append(br.models_used[0])
+            if not valid_recs:
+                #print(f"\033[1;33m No valid recs found in this round step: {step} \033[0m")
+                bt.logging.error(f"\033[1;33m No valid recs found in this round step: {self.step} \033[0m")
+                return        
+            
+            matrix = display_rec_matrix_str(valid_recs, models_used, highlight_indices=most_similar)                                    
+            print(matrix)
+            bt.logging.info(matrix)
+
+            et = time.perf_counter()
+            diff = et - st
+            #print(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
+            bt.logging.info(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
+
+            return most_similar
+        except Exception as e:
+            #print(f"analyze_similar_requests failed with exception: {e}")
+            bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
+            #print(traceback.format_exc())
+            bt.logging.error(traceback.format_exc())
+            return
         
 
     async def main_loop(self):
@@ -310,8 +370,8 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        #await self.analyze_similar_requests(responses)
-
+                        top_k = await self.analyze_similar_requests(number_of_recs_desired, responses)
+                        
                         # Select bitrec for the user
                         selected_rec = rewards.argmax() #TODO: change
                         elected = responses[selected_rec]

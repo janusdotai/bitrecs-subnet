@@ -209,11 +209,40 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
+    def extract_skus_from_results(self, results: list) -> list:
+        """Helper function to extract SKUs from various result formats"""
+        skus = []
+        for r in results:
+            try:
+                # Case 1: Dictionary with 'sku' key
+                if isinstance(r, dict) and 'sku' in r:
+                    skus.append(str(r['sku']))
+                    continue
+                    
+                # Case 2: JSON string
+                if isinstance(r, str):
+                    try:
+                        parsed = json.loads(r)
+                        if isinstance(parsed, dict) and 'sku' in parsed:
+                            skus.append(str(parsed['sku']))
+                        elif isinstance(parsed, list):
+                            # Handle array of objects
+                            for item in parsed:
+                                if isinstance(item, dict) and 'sku' in item:
+                                    skus.append(str(item['sku']))
+                    except json.JSONDecodeError:
+                        continue
+                        
+            except Exception as e:
+                bt.logging.warning(f"Failed to extract SKU from result: {e}")
+                continue
+        return skus
+
 
     async def analyze_similar_requests(self, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
         if not requests or len(requests) < 2 or self.step < 1:
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
-            return    
+            return
         
         async def get_dynamic_top_n(num_requests: int) -> int:
             """
@@ -242,7 +271,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     continue
                                 
                 try:
-                    skus = [r["sku"] for r in br.results if isinstance(r, dict) and "sku" in r]
+                    skus = self.extract_skus_from_results(br.results)
                     if skus:  # Only add if we got valid SKUs
                         valid_requests.append(br)
                         valid_recs.append(set(skus))

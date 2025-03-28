@@ -213,14 +213,7 @@ class BaseValidatorNeuron(BaseNeuron):
     async def analyze_similar_requests(self, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
         if not requests or len(requests) < 2 or self.step < 1:
             bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
-            return
-
-        async def list_to_json(results: List) -> List[str]:
-            final = []
-            for item in results:
-                thing = json.dumps(item)
-                final.append(thing)
-            return final
+            return    
         
         async def get_dynamic_top_n(num_requests: int) -> int:
             """
@@ -243,16 +236,21 @@ class BaseValidatorNeuron(BaseNeuron):
             valid_requests = []
             valid_recs = []
             models_used = []
-            for br in requests:
-                thing = await list_to_json(br.results)
-                valid_schema = validate_result_schema(num_recs, thing)
-                if not valid_schema:
+            for br in requests:                
+                if not validate_result_schema(num_recs, br.results):
                     bt.logging.warning(f"\033[1;33m Invalid schema for {br.miner_uid} with model {br.models_used} \033[0m")
                     continue
-                valid_requests.append(br)
-                skus = [r["sku"] for r in br.results]
-                valid_recs.append(set(skus))
-                models_used.append(br.models_used[0])
+                                
+                try:
+                    skus = [r["sku"] for r in br.results if isinstance(r, dict) and "sku" in r]
+                    if skus:  # Only add if we got valid SKUs
+                        valid_requests.append(br)
+                        valid_recs.append(set(skus))
+                        models_used.append(br.models_used[0] if br.models_used else "unknown")
+                except Exception as e:
+                    bt.logging.error(f"Error extracting SKUs from results: {e}")
+                    continue
+                    
             if not valid_recs:
                 bt.logging.error(f"\033[1;33m No valid recs found to analyze on step: {self.step} \033[0m")
                 return

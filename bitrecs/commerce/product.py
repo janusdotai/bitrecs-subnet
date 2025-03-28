@@ -5,9 +5,9 @@ import bittensor as bt
 import pandas as pd
 from abc import abstractmethod
 from enum import Enum
-from typing import Counter, Set
+from typing import Any, Counter, Dict, Set
 from pydantic import BaseModel
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 
 class CatalogProvider(Enum):
@@ -24,6 +24,12 @@ class Product:
     sku: str
     name: str
     price: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+    
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
     
 
 class ProductFactory:

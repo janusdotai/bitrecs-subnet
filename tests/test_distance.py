@@ -1,6 +1,5 @@
 
 import os
-import time
 os.environ["NEST_ASYNCIO"] = "0"
 import pytest
 import sys
@@ -18,9 +17,12 @@ from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 #from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.llms.prompt_factory2 import PromptFactory2 as PromptFactory
+from bitrecs.validator.reward import validate_result_schema
+
 from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (
-    display_rec_matrix,
+    ColorScheme,    
+    display_rec_matrix_str,    
     select_most_similar_sets,
     calculate_jaccard_distance, 
     select_most_similar_bitrecs, 
@@ -34,9 +36,11 @@ load_dotenv()
 LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
 WARMUP_OLLAMA_MODEL = "mistral-nemo"
 
-#MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b", "llama3.1" ]
+MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b", "llama3.1" ]
+
 #MODEL_BATTERY = ["llama3.1:70b-instruct-q4_0", "qwen2.5:32b", "gemma3:27b", "nemotron:latest"]
-MODEL_BATTERY = ["qwen2.5:32b", "gemma3:27b", "nemotron:latest", "phi4"]
+
+#MODEL_BATTERY = ["qwen2.5:32b", "gemma3:27b", "nemotron:latest", "phi4"]
 
 # CLOUD_BATTERY = ["deepseek/deepseek-chat-v3-0324",
 #                  "amazon/nova-lite-v1", "google/gemini-flash-1.5-8b",
@@ -48,8 +52,9 @@ CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/ge
                  "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini"]
 
 
-_FIRST_GET_REC = False
-_FIRST_GET_MOCK_REC = False
+_FIRST_GET_REC = True
+_FIRST_GET_MOCK_REC = True
+
 DEBUG_ALL_PROMPTS = False
 
 class TestConfig:
@@ -215,8 +220,9 @@ def get_rec_fake(sku, num_recs=5) -> List:
         raise ValueError("sku is required")
     products = product_1k()
     products = ProductFactory.dedupe(products)
-    result = safe_random.sample(products, num_recs)
-    return result
+    result = safe_random.sample(products, num_recs)    
+    final = [thing.to_dict() for thing in result]
+    return final
 
 
 def mock_br_request(products: List[Product], 
@@ -455,7 +461,7 @@ def test_local_llm_base_config_jaccard():
         this_model = f"random-{i}"
         fake_recs = get_rec_fake(product.sku, config.num_recs)
         assert fake_recs is not None
-        fake_set = set(str(r.sku) for r in fake_recs)
+        fake_set = set(str(r["sku"]) for r in fake_recs)
         rec_sets.append(fake_set)
         print(f"Set {i} (Random) {this_model}: {sorted(list(fake_set))}")        
         model_recs[this_model] = recs
@@ -534,7 +540,9 @@ def test_local_llm_base_config_jaccard():
 
     summary = recommender_presenter(product.sku, [rec_sets[idx] for idx in most_similar])
     print(summary)
-    display_rec_matrix(rec_sets, models_used, most_similar)
+    
+    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    print(matrix)
 
 
 def test_local_llm_raw_1k_jaccard():
@@ -557,7 +565,7 @@ def test_local_llm_raw_1k_jaccard():
     for i in range(config.fake_set_count):
         model_name = f"random-{i}"
         fake_recs = get_rec_fake(sku, config.num_recs)
-        fake_set = set(str(r.sku) for r in fake_recs)
+        fake_set = set(str(r["sku"]) for r in fake_recs)
         rec_tracking.append((fake_set, model_name))
         print(f"Set (Random) {model_name}: {sorted(list(fake_set))}")    
     
@@ -619,7 +627,7 @@ def test_local_llm_bitrecs_5k_jaccard():
         this_model = f"random-{i}"
         fake_recs = get_rec_fake(sku, config.num_recs)
         assert fake_recs is not None
-        fake_set = set(str(r.sku) for r in fake_recs)
+        fake_set = set(str(r['sku']) for r in fake_recs)
         assert len(fake_set) == config.num_recs
         print(f"Set {i} (Random) {this_model}: {sorted(list(fake_set))}")
         rec_sets.append(fake_set)
@@ -650,7 +658,9 @@ def test_local_llm_bitrecs_5k_jaccard():
 
     report = recommender_presenter(sku, [rec_sets[idx] for idx in most_similar])
     print(report)     
-    display_rec_matrix(rec_sets, models_used, most_similar)
+    
+    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    print(matrix)
 
 
 def test_local_llm_bitrecs_protocol_5k_jaccard():
@@ -684,7 +694,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
             query=sku,
             context="[]",
             site_key=group_id,
-            results=[{"sku": r.sku} for r in fake_recs],
+            results=[{"sku": r['sku']} for r in fake_recs],
             models_used=[f"random-{i}"],
             miner_uid=str(safe_random.randint(10, 100)),
             miner_hotkey=secrets.token_hex(16)
@@ -737,7 +747,7 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
     print(report)
 
     if most_similar2:
-        print("Selected sets:")
+        print("Low sets:")
         for req in most_similar2:
             model = req.models_used[0]
             skus = [r['sku'] for r in req.results]
@@ -779,9 +789,11 @@ def test_local_llm_bitrecs_protocol_5k_jaccard():
         print(report)
     else:        
         print(f"\033[31m No sets for threshold (>51%) {len(selected_sets)} \033[0m")
+
     
-    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]    
+    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    print(matrix)
 
 
 def test_cloud_llm_bitrecs_protocol_1k_jaccard():
@@ -815,7 +827,7 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
             query=sku,
             context="[]",
             site_key=group_id,
-            results=[{"sku": r.sku} for r in fake_recs],
+            results=[{"sku": r['sku']} for r in fake_recs],
             models_used=[fake_model],
             miner_uid=str(safe_random.randint(10, 100)),
             miner_hotkey=secrets.token_hex(16)
@@ -916,8 +928,9 @@ def test_cloud_llm_bitrecs_protocol_1k_jaccard():
     else:
         print(f"\nNo results for threshold (>51%) out of {len(selected_sets)} sets ")
 
-    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]    
+    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    print(matrix)
 
 
 def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
@@ -951,7 +964,7 @@ def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
             query=sku,
             context="[]",
             site_key=group_id,
-            results=[{"sku": r.sku} for r in fake_recs],
+            results=[{"sku": r['sku']} for r in fake_recs],
             models_used=[fake_model],
             miner_uid=str(safe_random.randint(10, 100)),
             miner_hotkey=secrets.token_hex(16)
@@ -1086,7 +1099,8 @@ def test_hybrid_cloud_llm_bitrecs_protocol_1k_jaccard():
         print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
 
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
+    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    print(matrix)
 
 
 def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
@@ -1120,7 +1134,7 @@ def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
             query=sku,
             context="[]",
             site_key=group_id,
-            results=[{"sku": r.sku} for r in fake_recs],
+            results=[{"sku": r['sku']} for r in fake_recs],
             models_used=[fake_model],
             miner_uid=str(safe_random.randint(10, 100)),
             miner_hotkey=secrets.token_hex(16)
@@ -1254,5 +1268,115 @@ def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
     else:
         print(f"\nNo results for threshold (>80%) out of {len(selected_sets)} sets ")
 
-    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]    
+    matrix = display_rec_matrix_str(rec_sets, models_used, most_similar)
+    print(matrix)
+
+
+def results_to_json(results: List) -> List[str]:
+    final = []
+    for item in results:
+        thing = json.dumps(item)
+        final.append(thing)
+    return final
+
+
+def test_local_llm_bitrecs_protocol_with_randos():
+    group_id = secrets.token_hex(16)    
+    products = product_1k()
+    products = ProductFactory.dedupe(products)
+    sku = safe_random.choice(products).sku
+    
+    print(f"This test is using {len(products)} products ")  
+    product_name = product_name_by_sku_trimmed(sku, 500)
+    print(f"Target Product:\033[32m{product_name} \033[0m")
+
+    config = TestConfig()
+    rec_sets : List[BitrecsRequest] = []
+    models_used = []
+    
+    battery = MODEL_BATTERY
+    safe_random.shuffle(battery)    
+    print(f"USING LOCAL MODEL BATTERY of size: {len(battery)}")
+    print(f"Number of recommendations: {config.num_recs}")
+    print(f"Number of real sets: {len(battery)}")
+    print(f"Number of fake sets: {config.fake_set_count}")  
+    print(f"Top N: {config.top_n}")
+
+    for i, thing in enumerate(range(config.fake_set_count)):
+        this_model = f"random-{i}"
+        fake_recs = get_rec_fake(sku, config.num_recs)
+        m = BitrecsRequest(
+            created_at=datetime.now().isoformat(),
+            user="test_user",
+            num_results=config.num_recs,
+            query=sku,
+            context="[]",
+            site_key=group_id,
+            results=fake_recs,
+            models_used=[this_model],
+            miner_uid=str(i),
+            miner_hotkey=secrets.token_hex(16)
+        )
+        rec_sets.append(m)
+        print(f"Set {i} {this_model}: {m.miner_uid}")
+        models_used.append(this_model)
+    
+   
+    for model in battery:
+        mock_req = mock_br_request(products, group_id, sku, model, config.num_recs)
+        assert mock_req is not None 
+        assert mock_req.results is not None
+        assert len(mock_req.results) == config.num_recs
+        rec_sets.append(mock_req)
+        i += 1
+        print(f"Set {i} {model}: {mock_req.miner_uid}")
+        models_used.append(model)
+        
+    print("\nFinished generating rec sets")  
+    print(f"A total of {len(rec_sets)} sets")    
+    
+    invalid_count = 0
+    for s in rec_sets:
+        thing = results_to_json(s.results)
+        valid_schema = validate_result_schema(config.num_recs, thing)
+        if not valid_schema:
+            invalid_count += 1
+            print(f"\033[1;33m Invalid schema for {s.miner_uid} with model {s.models_used} \033[0m")
+            #s.results = []
+        #assert valid_schema, "Invalid schema for results"
+
+    print(f"Total Invalid schema count: {invalid_count}")
+    #assert invalid_count == 0, "Invalid schema for results"
+
+    most_similar = select_most_similar_bitrecs(rec_sets, top_n=config.top_n)
+    assert most_similar is not None
+    assert len(most_similar) == config.top_n
+    
+    for i, thing in enumerate(most_similar):
+        rec_index = rec_sets.index(thing) or 0
+        assert rec_index >= config.fake_set_count, "Selected set is a fake set, expected real model"
+
+    recs : List[Set[str]] = []
+    print(f"\nMost similar set indices: {len(most_similar)}")
+    print("Selected sets:")
+    for i, sim in enumerate(most_similar):        
+        miner_uid = sim.miner_uid
+        print(f"Set {i} of {len(rec_sets)} {miner_uid}")        
+        model = sim.models_used[0]            
+        print(f"Model: {model}")        
+        print(f"  SKUs: {sim.results}")
+        skus = [r["sku"] for r in sim.results]   
+        recs.append(set(skus))
+   
+    most_similar_sets = [set(r['sku'] for r in req.results) for req in most_similar]
+    report = recommender_presenter(sku, most_similar_sets)
+    print(report)    
+ 
+    all_sets = [set(r["sku"] for r in req.results) for req in rec_sets]
+    matrix = display_rec_matrix_str(all_sets, models_used, highlight_indices=most_similar, 
+                                    color_scheme=ColorScheme.VIRIDIS)
+    print(matrix)
+
+
+

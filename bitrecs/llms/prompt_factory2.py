@@ -157,7 +157,7 @@ class PromptFactory2:
         token_count = PromptFactory2.get_token_count(prompt)
         bt.logging.info(f"LLM QUERY Prompt Token count: {token_count}")
 
-        if self.debug:
+        if self.debug:            
             bt.logging.debug(f"Persona: {self.persona}")
             bt.logging.debug(f"Season {season}")
             bt.logging.debug(f"Values: {', '.join(persona_data['priorities'])}")
@@ -172,6 +172,11 @@ class PromptFactory2:
         encoding = tiktoken.get_encoding(encoding_name)        
         tokens = encoding.encode(prompt)
         return len(tokens)
+    
+    
+    @staticmethod
+    def get_word_count(prompt: str) -> int:
+        return len(prompt.split())
     
 
     @staticmethod

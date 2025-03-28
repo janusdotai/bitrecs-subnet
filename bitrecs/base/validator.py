@@ -42,7 +42,7 @@ from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
-from bitrecs.utils.distance import display_rec_matrix, select_most_similar_bitrecs_threshold2
+#from bitrecs.utils.distance import select_most_similar_bitrecs_threshold2
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (
@@ -208,24 +208,24 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
-    async def analyze_similar_requests(self, requests: List[BitrecsRequest]):        
-        if not requests or len(requests) < 2:
-            bt.logging.info(f"Too few requests to analyze: {len(requests)}")
-            return
-        try:
-            top_k = 2
-            threshold = 0.05
-            most_similar = select_most_similar_bitrecs_threshold2(requests, top_k, threshold)
-            if not most_similar:
-                bt.logging.info(f"No similar recs found in this round step: {self.step}")
-                return
-            for sim in most_similar:
-                bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
-            #display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
-        except Exception as e:
-            bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
-            bt.logging.error(traceback.format_exc())
-            return
+    # async def analyze_similar_requests(self, requests: List[BitrecsRequest]):        
+    #     if not requests or len(requests) < 2:
+    #         bt.logging.info(f"Too few requests to analyze: {len(requests)}")
+    #         return
+    #     try:
+    #         top_k = 2
+    #         threshold = 0.05
+    #         most_similar = select_most_similar_bitrecs_threshold2(requests, top_k, threshold)
+    #         if not most_similar:
+    #             bt.logging.info(f"No similar recs found in this round step: {self.step}")
+    #             return
+    #         for sim in most_similar:
+    #             bt.logging.info(f"Most Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+    #         #display_rec_matrix(rec_sets, models_used, highlight_indices=most_similar)
+    #     except Exception as e:
+    #         bt.logging.error(f"analyze_similar_requests failed with exception: {e}")
+    #         bt.logging.error(traceback.format_exc())
+    #         return
         
 
     async def main_loop(self):
@@ -310,7 +310,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue
                         
-                        await self.analyze_similar_requests(responses)
+                        #await self.analyze_similar_requests(responses)
 
                         # Select bitrec for the user
                         selected_rec = rewards.argmax() #TODO: change

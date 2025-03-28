@@ -1,6 +1,8 @@
+import json
 from enum import Enum
 from typing import List, Optional, Set
 from bitrecs.protocol import BitrecsRequest
+
 
 def calculate_jaccard_distance(set1: Set, set2: Set) -> float:  
     if not set1 or not set2:
@@ -217,10 +219,10 @@ class ColorPalette:
     """Color schemes for matrix visualization"""
     SCHEMES = {
         ColorScheme.VIRIDIS: {
-            "strong": "\033[38;5;55m",   # Dark Purple
-            "medium": "\033[38;5;31m",   # Deep Blue
-            "weak": "\033[38;5;37m",     # Teal
-            "minimal": "\033[38;5;114m",  # Lime Green
+            "strong": "\033[38;5;114m",  # Lime Green
+            "medium": "\033[38;5;37m",     # Teal
+            "weak": "\033[38;5;31m",   # Deep Blue
+            "minimal": "\033[38;5;55m",   # Dark Purple 
             "highlight": "\033[38;5;227m" # Bright Yellow
         },
         ColorScheme.ROCKET: {
@@ -246,26 +248,45 @@ class ColorPalette:
         }
     }
 
-def display_rec_matrix(
+# def display_rec_matrix(
+#     rec_sets: List[Set[str]], 
+#     models_used: List[str], 
+#     highlight_indices: List[int] = None,
+#     color_scheme: ColorScheme = ColorScheme.VIRIDIS
+# ) -> None:
+    
+#     matrix = display_rec_matrix_str(
+#         rec_sets,
+#         models_used,
+#         highlight_indices,
+#         color_scheme
+#     )
+#     print(matrix)    
+
+
+def display_rec_matrix_str(
     rec_sets: List[Set[str]], 
     models_used: List[str], 
     highlight_indices: List[int] = None,
     color_scheme: ColorScheme = ColorScheme.VIRIDIS
-) -> None:
+) -> str:
     """
-    Display similarity matrix with customizable color schemes
+    Generate similarity matrix report as a string with customizable color schemes
     
     Args:
         rec_sets: List of recommendation sets
         models_used: List of model names
         highlight_indices: Indices of sets to highlight
         color_scheme: Color scheme to use for visualization
+    Returns:
+        str: Complete formatted matrix report
     """
+    output = []
     colors = ColorPalette.SCHEMES[color_scheme]
-    print(f"\nDistance Matrix - {len(rec_sets)} sets\n")
-    #print(f"total of {len(rec_sets)} sets")
     
-    # Print header with highlighting
+    output.append(f"\nDistance Matrix - {len(rec_sets)} sets\n")
+    
+    # Generate header with highlighting
     header = "       "
     for j in range(len(rec_sets)):
         col_num = f"{j:7d}"
@@ -273,14 +294,13 @@ def display_rec_matrix(
             header += f"{colors['highlight']}{col_num}\033[0m"
         else:
             header += col_num
-    print(header)
+    output.append(header)
     
     # Track matches for summary
     match_info = []
     
-    # Print matrix with color scheme
+    # Generate matrix with color scheme
     for i in range(len(rec_sets)):
-        # Handle row highlighting
         if highlight_indices and i in highlight_indices:
             row_start = f"{colors['highlight']}{i:4d}  \033[0m"
         else:
@@ -292,11 +312,9 @@ def display_rec_matrix(
                 distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
                 cell = f"{distance:7.3f}"
                 
-                # Track significant matches
                 if distance < 0.91:
                     match_info.append((i, j, distance, models_used[i], models_used[j]))
                 
-                # Apply color scheme based on distance
                 if distance < 1.0:
                     if highlight_indices and i in highlight_indices and j in highlight_indices:
                         cell = f"{colors['highlight']}{cell}\033[0m"
@@ -312,17 +330,15 @@ def display_rec_matrix(
             else:
                 row.append("      -")
         
-        print(row_start + "".join(row))
+        output.append(row_start + "".join(row))
     
-    # Print match summary with same color scheme
+    # Add match summary with same color scheme
     if match_info:
-        print("\nSignificant Model Matches (Sorted by Similarity):")
-        print("-" * 60)
-        # Sort by similarity (highest first)
+        output.append("\nSignificant Model Matches (Sorted by Similarity):")
+        output.append("-" * 60)
         for i, j, dist, model1, model2 in sorted(match_info, key=lambda x: (1 - x[2]), reverse=True):
             similarity = 1 - dist
-            # Only show meaningful matches
-            if similarity >= 0.1:  # Adjust threshold as needed
+            if similarity >= 0.1:
                 if similarity >= 0.5:
                     color = colors['strong']
                 elif similarity >= 0.3:
@@ -330,22 +346,24 @@ def display_rec_matrix(
                 elif similarity >= 0.1:
                     color = colors['weak']
                 
-                print(f"{color}Similarity: {similarity:.2f}\033[0m")
-                print(f"  Model {i}: {model1}")
-                print(f"  Model {j}: {model2}")
-                print(f"  Matrix Distance: {dist:.3f}")
-                print("-" * 40)
+                output.append(f"{color}Similarity: {similarity:.2f}\033[0m")
+                output.append(f"  Model {i}: {model1}")
+                output.append(f"  Model {j}: {model2}")
+                output.append(f"  Matrix Distance: {dist:.3f}")
+                output.append("-" * 40)
                 if "random" in model1 or "random" in model2:
-                    print(f"\033[33m  ⚠️ Warning: Includes random set!\033[0m")
+                    output.append(f"\033[33m  ⚠️ Warning: Includes random set!\033[0m")
     
     # Add scheme-specific legend
-    print(f"\nLegend ({color_scheme.value}):")
-    print(f"{colors['highlight']}Highlighted Rows/Cols\033[0m: Selected sets")
-    print(f"{colors['strong']}>= 0.5\033[0m "
-          f"{colors['medium']}>= 0.3\033[0m "
-          f"{colors['weak']}>= 0.1\033[0m "
-          f"{colors['minimal']}> 0.0\033[0m: Match strength")
+    output.append(f"\nLegend ({color_scheme.value}):")
+    output.append(f"{colors['highlight']}Highlighted Rows/Cols\033[0m: Selected sets")
+    output.append(f"{colors['strong']}>= 0.5\033[0m "
+                 f"{colors['medium']}>= 0.3\033[0m "
+                 f"{colors['weak']}>= 0.1\033[0m "
+                 f"{colors['minimal']}> 0.0\033[0m: Match strength")
     
-    print("\nNote: Lower distances between sets (real) vs (random)")
-    print("      indicate better recommendation quality")
-    print("=" * 40)
+    output.append("\nNote: Lower distances between sets (real) vs (random)")
+    output.append("      indicate better recommendation quality")
+    output.append("=" * 40)
+    
+    return "\n".join(output)

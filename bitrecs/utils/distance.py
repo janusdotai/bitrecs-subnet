@@ -1,4 +1,5 @@
 import json
+import secrets
 import json_repair
 from enum import Enum
 from typing import List, Optional, Set
@@ -319,7 +320,9 @@ def display_rec_matrix_str(
     color_scheme: ColorScheme = ColorScheme.VIRIDIS
 ) -> str:
     """
-    Generate similarity matrix report as a string with customizable color schemes
+    Displays the similarity matrix for recommendation sets.
+    Each cell represents the Jaccard distance between two sets.
+    Cells are color-coded based on distance.
     
     Args:
         rec_sets: List of recommendation sets
@@ -415,3 +418,50 @@ def display_rec_matrix_str(
     output.append("=" * 40)
     
     return "\n".join(output)
+
+
+
+
+def display_recommender_presenter(original_sku: str, recs: List[Set[str]]) -> str:
+    result = f"Target SKU: \033[32m {original_sku} \033[0m\n"
+    #target_product_name = product_name_by_sku_trimmed(original_sku, 200)
+
+    def lookup_product_name(sku: str) -> str:
+        # Placeholder for actual product name lookup logic
+        return secrets.token_hex(16)
+        #return sku
+
+    target_product_name = original_sku
+    if not target_product_name:
+        raise ValueError("Target product name is empty")    
+
+    name = original_sku    
+    result += f"Query Product:\033[32m{target_product_name} \033[0m\n"
+    result += "------------------------------------------------------------\n"    
+    # Track matches with simple counter
+    matches = {}  # name -> count    
+    # First pass - count matches
+    for rec_set in recs:
+        for rec in rec_set:
+            #name = lookup_product_name(rec, 90)
+            matches[name] = matches.get(name, 0) + 1
+    
+    # Second pass - output with emphasis on matches
+    seen = set()
+    for rec_set in recs:
+        for rec in rec_set:
+            #name = product_name_by_sku_trimmed(rec, 90)
+            if (rec, name) in seen:
+                continue
+                
+            seen.add((rec, name))
+            count = matches[name]
+            if count > 1:
+                # Double match - bright green
+                result += f"\033[1;32m{rec} - {name} (!)\033[0m\n"
+            elif count == 1:
+                # Single appearance - normal
+                result += f"{rec} - {name}\n"
+
+    result += "\n"
+    return result

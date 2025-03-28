@@ -251,7 +251,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.info(f"Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
             
             matrix = display_rec_matrix_str(valid_recs, models_used, highlight_indices=most_similar)
-            print(matrix)
+            #print(matrix)
             bt.logging.info(matrix)
 
             et = time.perf_counter()
@@ -341,7 +341,7 @@ class BaseValidatorNeuron(BaseNeuron):
                             synapse_with_event.event.set()
                             continue                                                
                         
-                        # Top score goes to client:
+                        # Default - send top score to client
                         selected_rec = rewards.argmax()
                         good_indices = np.where(rewards > 0)[0]
                         if len(good_indices) > 0:
@@ -350,24 +350,22 @@ class BaseValidatorNeuron(BaseNeuron):
                             top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
                             if top_k and 1==2: #Top score now pulled from top_k
                                 winner = safe_random.sample(top_k, 1)[0]
-                                bt.logging.info(f"top_k Select miner: {winner.miner_uid} with model {winner.models_used} - batch: {winner.site_key}")
+                                bt.logging.info(f"\033[1;32m top_k Select miner: {winner.miner_uid} with model {winner.models_used} - batch: {winner.site_key} \033[0m")
                                 bt.logging.info(f"{winner.results}")
                                 selected_rec = responses.index(winner)
                         else:                            
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
                             continue
-
-                        # Select bitrec for the user
-                        #selected_rec = rewards.argmax() #TODO: change
-                                                                        
-                        elected = responses[selected_rec]
+                    
+                        elected : BitrecsRequest = responses[selected_rec]
                         elected.context = "" #save bandwidth
 
                         bt.logging.info("SCORING DONE")
                         bt.logging.info(f"\033[1;32mWINNING MINER: {elected.miner_uid} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING RESULT: {elected} \033[0m")
+                        bt.logging.info(f"\033[1;32mWINNING Batch Id: {elected.site_key} \033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
@@ -378,7 +376,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         synapse_with_event.output_synapse = elected
                         # Mark the synapse as processed, API will then return to the client
                         synapse_with_event.event.set()
-                        self.total_request_in_interval +=1                       
+                        self.total_request_in_interval +=1
                     
                         bt.logging.info(f"Scored responses: {rewards}")
                         self.update_scores(rewards, chosen_uids)

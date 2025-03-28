@@ -25,6 +25,7 @@ from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (
     ColorScheme,    
     display_rec_matrix_str,
+    display_recommender_presenter,
     select_most_similar_bitrecs_safe,    
     select_most_similar_sets,
     calculate_jaccard_distance, 
@@ -1389,6 +1390,10 @@ def test_local_llm_bitrecs_protocol_with_randos():
         for c in candidates:
             skus = [sku["sku"] for sku in c.results]
             print(f"Candidate {c.miner_uid} - {c.models_used} - SKUs: {skus}")
+
+
+    # display_report = display_recommender_presenter(sku, most_similar_sets)
+    # print(display_report)
         
 
 
@@ -1462,7 +1467,6 @@ def analyze_similar_requests(step, num_recs: int, requests: List[BitrecsRequest]
         diff = et - st
         print(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
         bt.logging.info(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
-
         return most_similar
     except Exception as e:
         print(f"analyze_similar_requests failed with exception: {e}")

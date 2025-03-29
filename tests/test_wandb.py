@@ -411,9 +411,11 @@ def test_wandb_cluster_logging():
     rec_requests : List[BitrecsRequest] = []
     models_used = []
    
-    #MIX = ['RANDOM']
+    COLORS = [ColorScheme.VIRIDIS, ColorScheme.MAKOTO, ColorScheme.ROCKET, ColorScheme.SPECTRAL]
+    
+    #MIX = ['RANDOM']    
     MIX = ['RANDOM', 'CLOUD', 'LOCAL']
-    RANDOM_COUNT = 3
+    RANDOM_COUNT = 20
     CLOUD_COUNT = 4
     LOCAL_COUNT = 4
     
@@ -483,15 +485,17 @@ def test_wandb_cluster_logging():
     for sim in most_similar:
         print(f"Miner UID: {sim.miner_uid}, Site Key: {sim.site_key}, Models Used: {sim.models_used}")
 
-    most_similar_indices = [rec_requests.index(req) for req in most_similar]
-    # Generate matrix for display
-    matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar_indices, 
-                                    color_scheme=ColorScheme.VIRIDIS)
+    #Matrix display
+    most_similar_indices = [rec_requests.index(req) for req in most_similar]    
+    scheme = safe_random.choice(COLORS)
+    matrix = display_rec_matrix(valid_recs, models_used, 
+                                highlight_indices=most_similar_indices, color_scheme=scheme)
     print("Similarity Matrix:")
     print(matrix)
 
-
-    html_matrix = display_rec_matrix_html(valid_recs, models_used, highlight_indices=most_similar_indices)
+    html_matrix = display_rec_matrix_html(valid_recs, 
+                                          models_used,
+                                        highlight_indices=most_similar_indices)
 
     et = time.perf_counter()    
     analysis_time = et - st

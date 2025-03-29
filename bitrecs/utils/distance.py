@@ -408,6 +408,128 @@ def display_rec_matrix(
     return "\n".join(output)
 
 
+def display_rec_matrix_html(
+    rec_sets: List[Set[str]], 
+    models_used: List[str], 
+    highlight_indices: List[int] = None
+) -> str:
+    """
+    Generate HTML visualization of the similarity matrix.
+    
+    Args:
+        rec_sets: List of recommendation sets
+        models_used: List of model names
+        highlight_indices: Indices of sets to highlight
+    Returns:
+        str: HTML formatted matrix with styling
+    """
+    
+    css = """
+    <style>
+        .matrix-table { border-collapse: collapse; font-family: monospace; }
+        .matrix-table th, .matrix-table td { 
+            padding: 6px; 
+            border: 1px solid #ddd;
+            text-align: right;
+        }
+        .matrix-header { background-color: #f5f5f5; }
+        .highlight { background-color: #fff3b0; }
+        .strong { background-color: #90ee90; }
+        .medium { background-color: #87ceeb; }
+        .weak { background-color: #b19cd9; }
+        .minimal { background-color: #e6e6fa; }
+        .match-info { margin-top: 20px; }
+        .legend { margin-top: 20px; font-size: 0.9em; }
+        .warning { color: #ff6b6b; }
+    </style>
+    """
+    
+    html = [css, f"<h3>Distance Matrix - {len(rec_sets)} sets</h3>"]
+    html.append('<table class="matrix-table">')
+    
+    # Header row
+    header = ['<tr><th class="matrix-header"></th>']
+    for j in range(len(rec_sets)):
+        cls = 'highlight' if highlight_indices and j in highlight_indices else 'matrix-header'
+        header.append(f'<th class="{cls}">{j}</th>')
+    header.append('</tr>')
+    html.append(''.join(header))
+    
+    # Matrix rows
+    match_info = []
+    for i in range(len(rec_sets)):
+        row_cls = 'highlight' if highlight_indices and i in highlight_indices else ''
+        row = [f'<tr><td class="{row_cls}">{i}</td>']
+        
+        for j in range(len(rec_sets)):
+            if j < i:
+                distance = calculate_jaccard_distance(rec_sets[i], rec_sets[j])
+                
+                if distance < 0.91:
+                    match_info.append((i, j, distance, models_used[i], models_used[j]))
+                
+                # Determine cell class based on distance
+                if highlight_indices and i in highlight_indices and j in highlight_indices:
+                    cell_cls = 'highlight'
+                elif distance <= 0.5:
+                    cell_cls = 'strong'
+                elif distance <= 0.7:
+                    cell_cls = 'medium'
+                elif distance <= 0.9:
+                    cell_cls = 'weak'
+                elif distance < 1.0:
+                    cell_cls = 'minimal'
+                else:
+                    cell_cls = ''
+                    
+                cell = f'<td class="{cell_cls}">{distance:.3f}</td>'
+            else:
+                cell = '<td>-</td>'
+            row.append(cell)
+            
+        row.append('</tr>')
+        html.append(''.join(row))
+    
+    html.append('</table>')
+    
+    # Add match information
+    if match_info:
+        html.append('<div class="match-info">')
+        html.append('<h4>Model Matches:</h4>')
+        
+        for i, j, dist, model1, model2 in sorted(match_info, key=lambda x: (1 - x[2]), reverse=True):
+            similarity = 1 - dist
+            if similarity >= 0.1:
+                cls = 'strong' if similarity >= 0.5 else 'medium' if similarity >= 0.3 else 'weak'
+                html.append(f'<div class="{cls}">')
+                html.append(f'<p>Similarity: {similarity:.2f}</p>')
+                html.append(f'<p>Model {i}: {model1}</p>')
+                html.append(f'<p>Model {j}: {model2}</p>')
+                html.append(f'<p>Distance: {dist:.3f}</p>')
+                if "random" in model1 or "random" in model2:
+                    html.append('<p class="warning">Warning: Includes random set!</p>')
+                html.append('</div>')
+                html.append('<hr>')
+        
+        html.append('</div>')
+    
+    # Add legend
+    html.append('''
+    <div class="legend">
+        <h4>Legend:</h4>
+        <p><span class="highlight">Highlighted Sets</span></p>
+        <p><span class="strong">Strong Match (>= 0.5)</span></p>
+        <p><span class="medium">Medium Match (>= 0.3)</span></p>
+        <p><span class="weak">Weak Match (>= 0.1)</span></p>
+        <p><span class="minimal">Minimal Match (> 0.0)</span></p>
+        <p>Note: Lower distances between sets indicate better recommendation quality</p>
+    </div>
+    ''')
+    
+    return '\n'.join(html)
+
+
+
 
 
 def display_recommender_presenter(original_sku: str, recs: List[Set[str]]) -> str:

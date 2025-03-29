@@ -491,6 +491,23 @@ def display_rec_matrix_html(
         html.append(''.join(row))
     
     html.append('</table>')
+
+    if 1==1:
+        html.append('<div class="sku-sets" style="margin-top: 20px; font-family: monospace;">')
+        html.append('<h4>SKU Sets:</h4>')
+        # Create list of tuples with index, skus, model and sort by highlight status
+        sets_to_display = [(i, skus, model) for i, (skus, model) in enumerate(zip(rec_sets, models_used))]
+        sets_to_display.sort(key=lambda x: 0 if highlight_indices and x[0] in highlight_indices else 1)
+        
+        for i, skus, model in sets_to_display:
+            cls = 'highlight' if highlight_indices and i in highlight_indices else ''
+            html.append(f'<div class="{cls}" style="margin-bottom: 10px;">')
+            html.append(f'<p><strong>Set {i}</strong> (Model: {model})</p>')
+            html.append('<p style="margin-left: 20px;">')
+            html.append(', '.join(skus))  # No sorting, maintain original order
+            html.append('</p></div>')
+        html.append('</div>')
+
     
     # Add match information
     if match_info:

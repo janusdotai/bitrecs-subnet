@@ -150,7 +150,10 @@ def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> No
                     # Update schema if needed
                     update_table_schema(conn, list(final.columns))
                     final.to_sql('miner_responses', conn, index=False, if_exists='append', dtype=dtype_dict)
-
+                conn.commit()
+            except sqlite3.Error as e:
+                bt.logging.error(f"SQLite error: {e}")
+                conn.rollback()
             finally:
                 conn.close()
 

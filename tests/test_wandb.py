@@ -117,7 +117,7 @@ class WandbHelper:
         self,
         step: int,
         most_similar: Optional[List[BitrecsRequest]],
-        valid_recs: List[set],
+        valid_recs: List[BitrecsRequest],
         models_used: List[str], 
         matrix: str,
         analysis_time: float
@@ -128,6 +128,7 @@ class WandbHelper:
             return
 
         try:
+            # Basic metrics
             metrics = {
                 "step": step,
                 "analysis_time": analysis_time,
@@ -136,63 +137,63 @@ class WandbHelper:
             }
             self.log_metrics(metrics)
 
+            # Log HTML matrix display
             wandb.log({
-                #"matrix_display": wandb.Html(f"<pre>{matrix}</pre>"),
                 "matrix_display": wandb.Html(f"{matrix}"),
-                # Can also log as plain text
-                #"matrix_text": wandb.Text(matrix)
             }, step=step)
 
             if not most_similar:
                 return
 
-            # Calculate similarity matrix
-            n = len(valid_recs)
+            # Convert BitrecsRequests to sets of SKUs for distance calculation
+            valid_sets = [set(r['sku'] for r in req.results) for req in valid_recs]
+            n = len(valid_sets)  # Get actual size
+
+            # Create complete n x n matrix
             matrix_data = []
             for i in range(n):
                 row = []
                 for j in range(n):
-                    if i == j:
-                        row.append(0.0)  # Self similarity
-                    else:
-                        # Calculate similarity from distance
-                        distance = calculate_jaccard_distance(valid_recs[i], valid_recs[j])
-                        similarity = 1.0 - distance
-                        row.append(similarity)
+                    if j >= i:  # Upper triangle and diagonal
+                        row.append("-")
+                    else:  # Lower triangle
+                        distance = calculate_jaccard_distance(valid_sets[i], valid_sets[j])
+                        row.append(f"{distance:.3f}")
                 matrix_data.append(row)
 
-            # Log similarity matrix
+            # Log the distance matrix
+            columns = [f"Set_{i}" for i in range(n)]  # Make n columns
             table = wandb.Table(
-                columns=[f"Set_{i}" for i in range(n)],
+                columns=columns,
                 data=matrix_data
             )
             wandb.log({"similarity_matrix": table}, step=step)
 
-            # Log clusters with actual similarities
-            cluster_pairs = []
+            # Log cluster pairs
+            cluster_table = wandb.Table(
+                columns=["miner_uid", "model_used", "site_key", "distance"]
+            )
             for i in range(len(most_similar)-1):
                 for j in range(i+1, len(most_similar)):
-                    idx1 = valid_recs.index(set(r['sku'] for r in most_similar[i].results))
-                    idx2 = valid_recs.index(set(r['sku'] for r in most_similar[j].results))
-                    similarity = matrix_data[idx1][idx2]
-                    cluster_pairs.append((most_similar[i], most_similar[j], similarity))
-
-            cluster_table = wandb.Table(
-                columns=["miner_uid", "model_used", "site_key", "similarity_score"]
-            )
-            for req1, req2, sim_score in cluster_pairs:
-                cluster_table.add_data(
-                    req1.miner_uid,
-                    req1.models_used[0] if req1.models_used else "unknown",
-                    req1.site_key,
-                    sim_score
-                )
-                cluster_table.add_data(
-                    req2.miner_uid,
-                    req2.models_used[0] if req2.models_used else "unknown", 
-                    req2.site_key,
-                    sim_score
-                )
+                    # Get indices in valid_sets
+                    idx1 = valid_recs.index(most_similar[i])
+                    idx2 = valid_recs.index(most_similar[j])
+                    # Calculate distance
+                    distance = calculate_jaccard_distance(valid_sets[idx1], valid_sets[idx2])
+                    
+                    # Log both miners in the pair
+                    cluster_table.add_data(
+                        most_similar[i].miner_uid,
+                        most_similar[i].models_used[0] if most_similar[i].models_used else "unknown",
+                        most_similar[i].site_key,
+                        f"{distance:.3f}"
+                    )
+                    cluster_table.add_data(
+                        most_similar[j].miner_uid,
+                        most_similar[j].models_used[0] if most_similar[j].models_used else "unknown", 
+                        most_similar[j].site_key,
+                        f"{distance:.3f}"
+                    )
             wandb.log({"clusters": cluster_table}, step=step)
 
             # Log model distribution
@@ -417,9 +418,9 @@ def test_wandb_cluster_logging():
     
     #MIX = ['RANDOM']    
     MIX = ['RANDOM', 'CLOUD', 'LOCAL']
-    RANDOM_COUNT = 6
-    CLOUD_COUNT = 3
-    LOCAL_COUNT = 2
+    RANDOM_COUNT = 9
+    CLOUD_COUNT = 2
+    LOCAL_COUNT = 3
         
     print(f"\n=== Protocol Recommendation Analysis ===")
     print(f"This test is using {len(products)} products ")
@@ -533,7 +534,7 @@ def test_wandb_cluster_logging():
     wandb_helper.log_cluster_metrics(
         step=1,
         most_similar=most_similar,
-        valid_recs=valid_recs,
+        valid_recs=rec_requests,
         models_used=models_used,
         matrix=html_matrix,
         analysis_time=analysis_time

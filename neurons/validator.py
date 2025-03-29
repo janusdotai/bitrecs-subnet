@@ -167,6 +167,13 @@ class Validator(BaseValidatorNeuron):
         """
         Periodically sync miner responses to R2
         """
+
+        r2_enabled = self.config.r2.sync_on
+        if not r2_enabled:
+            bt.logging.trace(f"R2 Sync OFF at {int(time.time())}")        
+            bt.logging.warning(f"R2 Sync is OFF set --r2.sync_on to enable")
+            return
+
         start_time = time.perf_counter()
         bt.logging.info(f"Starting R2 Sync at {int(time.time())}")
         if not self.wallet or not self.wallet.hotkey:
@@ -181,7 +188,7 @@ class Validator(BaseValidatorNeuron):
                 val_uid=self.config.netuid,
                 step=str(self.step),
                 llm_provider="OPEN_ROUTER",
-                llm_model="google/gemini-flash-1.5-8b"
+                llm_model="ignored"
             )
             bt.logging.trace(f"Sending response sync request: {update_request}")
             sync_result = put_r2_upload(update_request, keypair)

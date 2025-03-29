@@ -385,10 +385,10 @@ def display_rec_matrix(
                 elif similarity >= 0.1:
                     color = colors['weak']
                 
-                output.append(f"{color}Similarity: {similarity:.2f}\033[0m")
+                output.append(f"{color}Similarity: {similarity:.4f}\033[0m")
                 output.append(f"  Model {i}: {model1}")
                 output.append(f"  Model {j}: {model2}")
-                output.append(f"  Distance: {dist:.3f}")
+                output.append(f"  Distance: {dist:.4f}")
                 output.append("-" * 40)
                 if "random" in model1 or "random" in model2:
                     output.append(f"\033[33m  ⚠️ Warning: Includes random set!\033[0m")
@@ -502,10 +502,10 @@ def display_rec_matrix_html(
             if similarity >= 0.1:
                 cls = 'strong' if similarity >= 0.5 else 'medium' if similarity >= 0.3 else 'weak'
                 html.append(f'<div class="{cls}">')
-                html.append(f'<p>Similarity: {similarity:.2f}</p>')
+                html.append(f'<p>Similarity: {similarity:.4f}</p>')
                 html.append(f'<p>Model {i}: {model1}</p>')
                 html.append(f'<p>Model {j}: {model2}</p>')
-                html.append(f'<p>Distance: {dist:.3f}</p>')
+                html.append(f'<p>Distance: {dist:.4f}</p>')
                 if "random" in model1 or "random" in model2:
                     html.append('<p class="warning">Warning: Includes random set!</p>')
                 html.append('</div>')

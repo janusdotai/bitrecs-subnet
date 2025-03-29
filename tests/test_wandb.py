@@ -135,7 +135,8 @@ class WandbHelper:
             self.log_metrics(metrics)
 
             wandb.log({
-                "matrix_display": wandb.Html(f"<pre>{matrix}</pre>"),
+                #"matrix_display": wandb.Html(f"<pre>{matrix}</pre>"),
+                "matrix_display": wandb.Html(f"{matrix}"),
                 # Can also log as plain text
                 #"matrix_text": wandb.Text(matrix)
             }, step=step)
@@ -482,13 +483,15 @@ def test_wandb_cluster_logging():
     for sim in most_similar:
         print(f"Miner UID: {sim.miner_uid}, Site Key: {sim.site_key}, Models Used: {sim.models_used}")
 
+    most_similar_indices = [rec_requests.index(req) for req in most_similar]
     # Generate matrix for display
-    matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar, 
+    matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar_indices, 
                                     color_scheme=ColorScheme.VIRIDIS)
     print("Similarity Matrix:")
     print(matrix)
 
-    html_matrix = display_rec_matrix_html(valid_recs, models_used, highlight_indices=most_similar)
+
+    html_matrix = display_rec_matrix_html(valid_recs, models_used, highlight_indices=most_similar_indices)
 
     et = time.perf_counter()    
     analysis_time = et - st

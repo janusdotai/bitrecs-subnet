@@ -192,9 +192,9 @@ def select_most_similar_bitrecs_threshold(rec_sets: List[BitrecsRequest], top_n:
     for idx, req in enumerate(selected_requests):
         model = req.models_used[0] if req.models_used else "unknown"
         if idx < len(pairs):
-            print(f"Set {idx}: Model {model} (similarity: {pairs[idx][2]:.3f})")
+            print(f" Set {idx}: Model {model} (similarity: {pairs[idx][2]:.3f})")
         else:
-            print(f"Set {idx}: Model {model}")
+            print(f" Set {idx}: Model {model}")
 
     return selected_requests[:top_n]
 

@@ -18,7 +18,7 @@ from dataclasses import asdict
 from typing import List, Optional, Set
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
-from bitrecs.llms.prompt_factory import PromptFactory as PromptFactory
+from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.validator.reward import validate_result_schema
 
 from bitrecs.utils.misc import ttl_cache
@@ -228,9 +228,8 @@ def get_rec_fake(sku, num_recs=5) -> List:
         raise ValueError("sku is required")
     products = product_1k()
     products = ProductFactory.dedupe(products)
-    result = safe_random.sample(products, num_recs)    
-    final = [thing.to_dict() for thing in result]
-    #print(f"Sku {sku} with model RANDOM = {final}")
+    result = safe_random.sample(products, num_recs)
+    final = [thing.to_dict() for thing in result]    
     return final
 
 
@@ -1284,13 +1283,6 @@ def test_hybrid_cloud_llm_bitrecs_protocol_5k_jaccard():
     print(matrix)
 
 
-def results_to_json(results: List) -> List[str]:
-    final = []
-    for item in results:
-        thing = json.dumps(item)
-        final.append(thing)
-    return final
-
 
 def test_local_llm_bitrecs_protocol_with_randos():
     group_id = secrets.token_hex(16)    
@@ -1404,6 +1396,13 @@ def test_local_llm_bitrecs_protocol_with_randos():
         
 
 
+def results_to_json(results: List) -> List[str]:
+    final = []
+    for item in results:
+        thing = json.dumps(item)
+        final.append(thing)
+    return final
+
 
 
 def analyze_similar_requests(step, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
@@ -1481,3 +1480,127 @@ def analyze_similar_requests(step, num_recs: int, requests: List[BitrecsRequest]
         print(traceback.format_exc())
         bt.logging.error(traceback.format_exc())
         return
+    
+
+
+def test_distance_limit():
+    """Test distance limit for BitrecsRequest"""
+    group_id = secrets.token_hex(16)
+    products = product_1k()
+    #products = product_5k()
+    products = ProductFactory.dedupe(products)
+    selected_product = safe_random.choice(products)
+    sku = selected_product.sku
+    
+    config = TestConfig()
+    rec_requests : List[BitrecsRequest] = []
+    models_used = []
+
+    #MIX = ['RANDOM', 'CLOUD', 'LOCAL']
+
+    #MIX = ['RANDOM', 'LOCAL', 'CLOUD']
+    MIX = ['RANDOM', 'LOCAL']
+    RANDOM_COUNT = 180
+    CLOUD_COUNT = 3
+    LOCAL_COUNT = 4
+    
+    print(f"\n=== Protocol Recommendation Analysis ===")
+    print(f"This test is using {len(products)} products ")
+    print(f"Original Product:")
+    print(f"SKU: \033[32m {sku} \033[0m")
+    print(f"Name: \033[32m {selected_product.name} \033[0m")
+    print(f"Price: ${selected_product.price}")
+    
+    if "RANDOM" in MIX:
+        print("\nGenerating random recommendations...")
+        for i in range(RANDOM_COUNT):
+            fake_recs = get_rec_fake(sku, config.num_recs)
+            fake_model = f"random-{i}"
+            req = BitrecsRequest(
+                created_at=datetime.now().isoformat(),
+                user="test_user",
+                num_results=config.num_recs,
+                query=sku,
+                context="[]",
+                site_key=group_id,
+                results=[{"sku": r['sku']} for r in fake_recs],
+                models_used=[fake_model],
+                miner_uid=str(safe_random.randint(10, 100)),
+                miner_hotkey=secrets.token_hex(16)
+            )
+            rec_requests.append(req)
+            models_used.append(fake_model)  
+
+    if "CLOUD" in MIX:
+        print("\nGenerating cloud recommendations...")
+        battery = CLOUD_BATTERY[:CLOUD_COUNT]
+        #battery = CLOUD_BATTERY
+        safe_random.shuffle(battery)
+        for model in battery:        
+            try:                        
+                req = mock_br_request_cloud(products, group_id, sku, model, config.num_recs)
+                rec_requests.append(req)
+                print(f"Set {model}: {[r['sku'] for r in req.results]}")
+                models_used.append(model)
+            except Exception as e:
+                print(f"SKIPPED - Error with model {model}: {e}")
+                continue
+
+    if "LOCAL" in MIX:
+        print("\nGenerating Local recommendations...")
+        local_battery = MODEL_BATTERY[:LOCAL_COUNT]
+        #local_battery = MODEL_BATTERY
+        safe_random.shuffle(local_battery)  
+        for model in local_battery:
+            try:
+                mock_req = mock_br_request(products, group_id, sku, model, config.num_recs)
+                rec_requests.append(mock_req)
+                print(f"Set {model}: {[r['sku'] for r in mock_req.results]}")
+                models_used.append(model)
+            except Exception as e:
+                print(f"SKIPPED - Error with model {model}: {e}")
+                continue
+    # No threshold
+    most_similar = select_most_similar_bitrecs(rec_requests, top_n=config.top_n)
+    assert most_similar is not None
+    assert len(most_similar) == config.top_n
+
+    # 5% ultralow
+    ulow_threshold = 0.05  
+    most_similar_low = select_most_similar_bitrecs_threshold(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=ulow_threshold)
+
+    # 10% with threshold
+    low_threshold = 0.10    
+    most_similar2 = select_most_similar_bitrecs_threshold(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=low_threshold)
+    # 33% or null
+    med_threshold = 0.33
+    most_similar3 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=med_threshold)
+    good_threshold = 0.51
+    most_similar4 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=good_threshold)
+    great_threshold = 0.80
+    most_similar5 = select_most_similar_bitrecs_threshold2(rec_requests, 
+                                                           top_n=config.top_n, 
+                                                           similarity_threshold=great_threshold)
+    print("\nFinished generating rec sets")
+    print("Selected sets:")
+    for req in most_similar:
+        model = req.models_used[0]
+        skus = [r['sku'] for r in req.results]
+        print(f"Model {model}:")
+        print(f"  SKUs: {sorted(skus)}")
+    print(f"\033[1;32m No Threshold \033[0m")   
+    selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
+    report = recommender_presenter(sku, selected_sets)
+    print(report)
+    rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
+    print(matrix)
+

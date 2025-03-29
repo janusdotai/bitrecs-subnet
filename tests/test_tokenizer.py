@@ -3,8 +3,7 @@ from dataclasses import asdict
 from random import SystemRandom
 safe_random = SystemRandom()
 from bitrecs.commerce.product import CatalogProvider, ProductFactory
-#from bitrecs.llms.prompt_factory import PromptFactory
-from bitrecs.llms.prompt_factory import PromptFactory as PromptFactory
+from bitrecs.llms.prompt_factory import PromptFactory
 from dotenv import load_dotenv
 load_dotenv()
 

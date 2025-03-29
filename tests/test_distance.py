@@ -1601,6 +1601,7 @@ def test_distance_limit():
     report = recommender_presenter(sku, selected_sets)
     print(report)
     rec_sets = [set(r['sku'] for r in req.results) for req in rec_requests]
-    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
+    most_similar_indices = [rec_requests.index(req) for req in most_similar]    
+    matrix = display_rec_matrix(rec_sets, models_used, most_similar_indices)
     print(matrix)
 

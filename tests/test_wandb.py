@@ -1,10 +1,8 @@
-
-
-import datetime
 import json
-import secrets
 import time
 import wandb
+import secrets
+import datetime
 import numpy as np
 import bittensor as bt
 from typing import Dict, Any, Optional, List
@@ -12,7 +10,13 @@ from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.protocol import BitrecsRequest
-from bitrecs.utils.distance import ColorScheme, calculate_jaccard_distance, display_rec_matrix, display_rec_matrix_html, select_most_similar_bitrecs_safe
+from bitrecs.utils.distance import (
+    ColorScheme, 
+    calculate_jaccard_distance, 
+    display_rec_matrix, 
+    display_rec_matrix_html, 
+    select_most_similar_bitrecs_safe
+)
 from bitrecs.utils.misc import ttl_cache
 from dataclasses import asdict
 from datetime import datetime
@@ -23,10 +27,8 @@ load_dotenv()
 
 
 DEBUG_ALL_PROMPTS = False
-_FIRST_GET_MOCK_REC = False
-_FIRST_GET_REC = False
-
-
+_FIRST_GET_MOCK_REC = True
+_FIRST_GET_REC = True
 
 LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
 WARMUP_OLLAMA_MODEL = "mistral-nemo"
@@ -415,10 +417,10 @@ def test_wandb_cluster_logging():
     
     #MIX = ['RANDOM']    
     MIX = ['RANDOM', 'CLOUD', 'LOCAL']
-    RANDOM_COUNT = 20
-    CLOUD_COUNT = 4
-    LOCAL_COUNT = 4
-    
+    RANDOM_COUNT = 6
+    CLOUD_COUNT = 3
+    LOCAL_COUNT = 2
+        
     print(f"\n=== Protocol Recommendation Analysis ===")
     print(f"This test is using {len(products)} products ")
     print(f"Original Product:")
@@ -484,6 +486,7 @@ def test_wandb_cluster_logging():
         return    
     for sim in most_similar:
         print(f"Miner UID: {sim.miner_uid}, Site Key: {sim.site_key}, Models Used: {sim.models_used}")
+        
 
     #Matrix display
     most_similar_indices = [rec_requests.index(req) for req in most_similar]    
@@ -500,6 +503,11 @@ def test_wandb_cluster_logging():
     et = time.perf_counter()    
     analysis_time = et - st
     print(f"Analysis time: {analysis_time} seconds")
+
+
+    for sim in most_similar:
+        for m in sim.models_used:
+            assert "random" not in m, "Random model found in similar clusters"
 
     wandb_project = "bitrecs_localnet"
     wandb_entity = "bitrecs"  
@@ -533,3 +541,5 @@ def test_wandb_cluster_logging():
     
     wandb_helper.finish()
     assert wandb_helper.run is None, "WandB run not finished properly"
+
+  

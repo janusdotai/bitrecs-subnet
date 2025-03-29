@@ -250,18 +250,16 @@ class BaseValidatorNeuron(BaseNeuron):
                 return
             
             top_n = await get_dynamic_top_n(len(valid_requests))
-            bt.logging.info(f"\033[1;32m Top N: {top_n} based on {len(valid_requests)} bitrecs \033[0m")
+            bt.logging.info(f"\033[1;32m Top {top_n} of {len(valid_requests)}/{len(requests)} (valid/total) bitrecs \033[0m")
             most_similar = select_most_similar_bitrecs_safe(valid_requests, top_n)
             if not most_similar:
                 bt.logging.warning(f"\033[33m No similar recs found in this round step: {self.step} \033[0m")
                 return
             for sim in most_similar:
-                bt.logging.info(f"Similar requests: {sim.miner_uid} {sim.models_used} - batch: {sim.site_key}")
+                bt.logging.info(f"Similar requests:\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m  - batch: {sim.site_key}")
             
-            matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar)
-            #print(matrix)
+            matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar)            
             bt.logging.info(matrix)
-
             et = time.perf_counter()
             diff = et - st
             bt.logging.info(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")

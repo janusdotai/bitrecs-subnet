@@ -5,7 +5,7 @@ import secrets
 import datetime
 import numpy as np
 import bittensor as bt
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Set
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
@@ -390,6 +390,55 @@ def mock_br_request_cloud(products: List[Product],
 
 
 
+def product_name_by_sku_trimmed(sku: str, take_length: int = 50, products = None) -> str:
+    try:
+        if not products:
+            products = product_20k()        
+        selected_product = [p for p in products if p.sku == sku][0]
+        name = selected_product.name
+        if len(name) > take_length:
+            name = name[:take_length] + "..."
+        return name        
+    except Exception as e:
+        print(e)
+        return f"Error loading sku {sku}"    
+
+
+def recommender_presenter(catalog: List[Product], original_sku: str, recs: List[Set[str]]) -> str:    
+    result = f"Target SKU: \033[32m {original_sku} \033[0m\n"
+    target_product_name = product_name_by_sku_trimmed(original_sku, 200, catalog)
+    result += f"Target Product:\033[32m{target_product_name} \033[0m\n"
+    result += "------------------------------------------------------------\n"    
+    # Track matches with simple counter
+    matches = {}  # name -> count    
+    # First pass - count matches
+    for rec_set in recs:
+        for rec in rec_set:
+            name = product_name_by_sku_trimmed(rec, 200, catalog)
+            matches[name] = matches.get(name, 0) + 1
+    
+    # Second pass - output with emphasis on matches
+    seen = set()
+    for rec_set in recs:
+        for rec in rec_set:
+            name = product_name_by_sku_trimmed(rec, 200, catalog)
+            if (rec, name) in seen:
+                continue
+                
+            seen.add((rec, name))
+            count = matches[name]
+            if count > 1:
+                # Double match - bright green
+                result += f"\033[1;32m{rec} - {name} (!)\033[0m\n"
+            elif count == 1:
+                # Single appearance - normal
+                result += f"{rec} - {name}\n"
+
+    result += "\n"
+    return result
+
+
+
 class TestConfig:
     similarity_threshold: float = 0.33
     top_n: int = 2
@@ -409,7 +458,7 @@ def test_wandb_cluster_logging():
     #products = product_5k()
     products = ProductFactory.dedupe(products)
     selected_product = safe_random.choice(products)
-    sku = selected_product.sku    
+    sku = selected_product.sku
     config = TestConfig()
     rec_requests : List[BitrecsRequest] = []
     models_used = []
@@ -418,8 +467,8 @@ def test_wandb_cluster_logging():
     
     #MIX = ['RANDOM']    
     MIX = ['RANDOM', 'CLOUD', 'LOCAL']
-    RANDOM_COUNT = 9
-    CLOUD_COUNT = 2
+    RANDOM_COUNT = 5
+    CLOUD_COUNT = 3
     LOCAL_COUNT = 3
         
     print(f"\n=== Protocol Recommendation Analysis ===")
@@ -500,6 +549,10 @@ def test_wandb_cluster_logging():
     html_matrix = display_rec_matrix_html(valid_recs, 
                                           models_used,
                                         highlight_indices=most_similar_indices)
+
+    selected_sets = [set(r['sku'] for r in req.results) for req in most_similar]
+    report = recommender_presenter(products, sku, selected_sets)
+    print(report)
 
     et = time.perf_counter()    
     analysis_time = et - st

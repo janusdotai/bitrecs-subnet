@@ -175,7 +175,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     project_name=wandb_project,
                     entity=wandb_entity,
                     config=wandb_config
-                )
+                )                
 
 
     def serve_axon(self):
@@ -296,7 +296,8 @@ class BaseValidatorNeuron(BaseNeuron):
                         pass #continue prevents regular val loop
 
                     if synapse_with_event is not None and api_enabled: #API request
-                        bt.logging.info("** Processing synapse from API server **")
+                        bt.logging.info("** Processing synapse from API server **")                        
+                        bt.logging.info(f"Queue Size: {api_queue.qsize()}")
 
                         # Validate the input synapse
                         if not validate_br_request(synapse_with_event.input_synapse):
@@ -372,6 +373,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         bt.logging.info(f"\033[1;32mWINNING MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING RESULT: {elected} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING Batch Id: {elected.site_key} \033[0m")
+                        bt.logging.info(f"\033[1;32mQueue Size: {api_queue.qsize()} \033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")

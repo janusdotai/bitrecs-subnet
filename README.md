@@ -112,22 +112,23 @@ Bitrecs does not use, collect or farm any customer data, PII or anything related
 
 - [x] launch testnet with v1 engine supporting Shopify/Woocommerce
 - [x] update scoring to use distance to try to measure LLM agreement across sets
-- [x] complete merchant/miner/validator portal for easy onboarding
+- [x] complete woo/shopify extensions
 
 
 ### Q2 2025
 
+- [ ] extension marketplace listings
+- [ ] expand miner diversity
 - [ ] launch on mainnet
 
 ### Q3 2025
 
-- [ ] aggressively market and onboard merchants
+- [ ] onboard merchants (large catalogs)
 - [ ] integrate additional platforms (magento, bigcommerce, wix)
-- [ ] evolve the V1 engine with new prompting and models, miner innovations
+- [ ] plugin features
 
 ### Q4 2025
 
-- [ ] improve plugins
 - [ ] overall UX, reskin and make the experience more delightful for merchants
 
 

@@ -26,9 +26,9 @@ Want to earn tao by mining? Check out our [mining guide](docs/running_miner.md) 
 ### Validating 
 Interested in running a validator? See our [validator setup instructions](docs/running_validator.md) for details.
 
-## Network 
-- Subnet 296
-- TBD
+## Subnet
+- Testnet: 296
+- Mainnet: TBD
 
 ## Protocol
 
@@ -124,13 +124,13 @@ Bitrecs does not use, collect or farm any customer data, PII or anything related
 
 - [ ] extension marketplace listings
 - [ ] expand miner diversity
-- [ ] launch on mainnet
+- [ ] launch mainnet
 
 ### Q3 2025
 
 - [ ] onboard merchants (large catalogs)
 - [ ] integrate additional platforms (magento, bigcommerce, wix)
-- [ ] plugin features
+- [ ] plugin features (cart history, persona switching)
 
 ### Q4 2025
 

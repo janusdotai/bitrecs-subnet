@@ -16,7 +16,7 @@ Bitrecs is a novel recommendation engine</a> built on the Bittensor network. Thi
 
 ### RecSys Landscape
 
-<img src="docs/recsys.png" alt="basic query" style="border: solid 3px #059669;" title="Recommender complexity"/>
+<img src="docs/bitrecs_q.png" alt="basic query" style="border: solid 3px #059669;" title="Recommender complexity"/>
 
 
 ### Mining

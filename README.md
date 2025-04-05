@@ -11,6 +11,7 @@
 [Discord](https://discord.gg/bittensor) • [Website](https://bitrecs.ai/)
 </div>
 
+
 ## Introduction
 Bitrecs is a novel recommendation engine</a> built on the Bittensor network. This implementation provides a framework for serving realtime e-commerce recommendations using LLMs. Miners are encouraged to experiment with their own implementations to improve latency and quality. We aim to provide relevant and timely recommendations for any ecommerce site.
 
@@ -25,6 +26,10 @@ Want to earn tao by mining? Check out our [mining guide](docs/running_miner.md) 
 ### Validating 
 Interested in running a validator? See our [validator setup instructions](docs/running_validator.md) for details.
 
+## Network 
+- Subnet 296
+- TBD
+
 ## Protocol
 
 <img src="docs/bitrecs_08.png" alt="basic query" style="border: solid 3px #059669;"/>
@@ -33,7 +38,7 @@ Interested in running a validator? See our [validator setup instructions](docs/r
 ## Subnet Goals
  - **Maximize sales for online retailers (ecommerce merchants)**
 
- - **Find, test and evaluate the best and most consistent LLMs that can produce quality, generalized recs**
+ - **Discover the best and most consistent LLMs that can produce quality, generalized recs**
 
 Common objectives shared by merchants:
 
@@ -110,7 +115,7 @@ Bitrecs does not use, collect or farm any customer data, PII or anything related
 ### Q1 2025
 
 
-- [x] launch testnet with v1 engine supporting Shopify/Woocommerce
+- [x] launch testnet supporting Shopify/Woocommerce
 - [x] update scoring to use distance to try to measure LLM agreement across sets
 - [x] complete woo/shopify extensions
 

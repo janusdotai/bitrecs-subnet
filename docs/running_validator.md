@@ -70,13 +70,13 @@ btcli w regen_hotkey
 ### Register Your Validator on the Subnet
 
 ```bash
-btcli subnet register --wallet.name default --wallet.hotkey default --network ws://138.197.163.127:9944
+btcli subnet register --wallet.name default --wallet.hotkey default --network wss://test.finney.opentensor.ai:443 
 ```
 
 ### Add at least 10 TAU Stake to get picked up by the Network
 
 ```bash
-btcli stake add --wallet.name default --wallet.hotkey default --network ws://138.197.163.127:9944
+btcli stake add --wallet.name default --wallet.hotkey default --network wss://test.finney.opentensor.ai:443 
 ```
 
 ## 7. Environment Configuration

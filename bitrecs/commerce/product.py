@@ -30,7 +30,18 @@ class Product:
     
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
+
+
+# @dataclass
+# class ReasonedProduct(Product):   
+#     reason: str = ""
+
+#     def to_dict(self) -> Dict[str, Any]:
+#         return asdict(self)
     
+#     def to_json(self) -> str:
+#         return json.dumps(self.to_dict())
+
 
 class ProductFactory:
 

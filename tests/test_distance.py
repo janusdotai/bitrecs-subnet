@@ -40,7 +40,9 @@ load_dotenv()
 LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
 WARMUP_OLLAMA_MODEL = "mistral-nemo"
 
-MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b", "llama3.1" ]
+#MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b", "llama3.1" ]
+
+MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:32b" ]
 
 #MODEL_BATTERY = ["llama3.1:70b-instruct-q4_0", "qwen2.5:32b", "gemma3:27b", "nemotron:latest"]
 
@@ -53,7 +55,7 @@ MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:14b", "llama3.1
 #                  "openai/gpt-4o-mini-search-preview", "openai/gpt-4o-mini", "qwen/qwen-turbo"]
 
 CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/gemini-2.0-flash-001",
-                 "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini"]
+                 "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini", "openrouter/quasar-alpha"]
 
 
 _FIRST_GET_REC = False

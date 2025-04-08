@@ -211,7 +211,7 @@ def reward(
             bt.logging.trace(f"\033[32mMiner {response.miner_uid} dendrite_time: {dendrite_time} \033[0m")
 
             #TODO - warn of minerx
-            if dendrite_time < 0.5:
+            if dendrite_time < 1.0:
                 bt.logging.trace(f"\033[33mWARNING Miner {response.miner_uid} suspect dendrite_time: {dendrite_time} \033[0m")
 
             score = score - ALPHA_TIME_DECAY * float(dendrite_time)

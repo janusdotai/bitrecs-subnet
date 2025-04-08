@@ -69,7 +69,7 @@ btcli w regen_hotkey
 ### Register Your Miner on the Subnet (Testnet 296)
 
 ```bash
-btcli subnet register --wallet.name miner --wallet.hotkey default --subtensor.chain_endpoint ws://138.197.163.127:9944
+btcli subnet register --netuid 296 --network wss://test.finney.opentensor.ai:443 --wallet.name default --wallet.hotkey default
 ```
 
 ## 7. Environment Configuration
@@ -79,7 +79,7 @@ Before running the miner, edit the environment file and fill in the necessary de
 ## 8. Start Miner & Validator
 
 ```bash
-pm2 start ./neurons/miner.py --name m -- --netuid 296 --subtensor.chain_endpoint wss://test.finney.opentensor.ai:443 --wallet.name default --wallet.hotkey default --logging.debug --llm.model google/gemini-flash-1.5
+pm2 start ./neurons/miner.py --name m -- --netuid 296 --subtensor.network  wss://test.finney.opentensor.ai:443 --wallet.name default --wallet.hotkey default --logging.trace --llm.model openrouter/quasar-alpha
 ```
 
 ## 9. Final Steps

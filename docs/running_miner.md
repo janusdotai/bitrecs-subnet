@@ -2,7 +2,7 @@
 
 This guide ensures the Bitrecs miner works on **Ubuntu 24.10 LTS**. Follow the steps below.
 
-Feel free to use scripts/install_miner.sh which can be curl'd as
+Feel free to use scripts/install_miner.sh which is the same as below and can be curl'd as
 
 ```bash
 curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/scripts/install_miner.sh | bash

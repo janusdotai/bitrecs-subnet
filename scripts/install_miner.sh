@@ -106,8 +106,8 @@ tput rmcup
 echo -e "\n${GREEN}╔════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║       Installation Complete! 🚀         ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════╝${NC}\n"
-echo -e "${BLUE}Next steps:${NC}"
-echo -e "✔️  Run: ${YELLOW}btcli --help${NC}"
-echo -e "✔️  Your venv auto-activates in new shells"
-echo -e "✔️  Repo at: ${YELLOW}~/bt/bitrecs-subnet${NC}\n"
+echo -e "✔️  Repo at: ${YELLOW}~/bt/bitrecs-subnet${NC}"
+echo -e "💡 ${YELLOW}To use your environment, please open a new terminal.${NC}"
+echo -e "   Your Python venv will activate automatically."
+echo -e "   Then run: ${GREEN}btcli --help${NC} or ${GREEN}cd ~/bt/bitrecs-subnet${NC} to get started.\n"
 

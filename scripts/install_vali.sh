@@ -88,6 +88,7 @@ run_command "apt install ufw -y" "Installing UFW..." 10
 run_command "apt-get update && apt-get upgrade -y" "Updating system packages..." 20
 run_command "ufw allow 22" "Configuring firewall (SSH)..." 30
 run_command "ufw allow proto tcp to 0.0.0.0/0 port 8091" "Configuring firewall (Port 8091)..." 35
+run_command "ufw allow proto tcp to 0.0.0.0/0 port 7779" "Configuring firewall (Port 7779)..." 36
 run_command "yes | ufw enable" "Enabling firewall..." 40
 run_command "ufw reload" "Reloading firewall..." 45
 

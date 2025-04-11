@@ -107,7 +107,8 @@ echo -e "\n${GREEN}╔═══════════════════�
 echo -e "${GREEN}║       Installation Complete! 🚀         ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════╝${NC}\n"
 echo -e "✔️  Repo at: ${YELLOW}~/bt/bitrecs-subnet${NC}"
-echo -e "💡 ${YELLOW}To use your environment, please open a new terminal.${NC}"
+echo -e "💡 ${YELLOW}To use your environment, please open a new terminal (re-ssh) ${NC}"
 echo -e "   Your Python venv will activate automatically."
+echo -e "   Touch .env and fill out the values."
 echo -e "   Then run: ${GREEN}btcli --help${NC} or ${GREEN}cd ~/bt/bitrecs-subnet${NC} to get started.\n"
 

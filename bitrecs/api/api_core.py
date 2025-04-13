@@ -4,8 +4,6 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from fastapi.responses import JSONResponse
-from starlette.requests import Request
-from starlette.responses import JSONResponse
 import ipaddress
 
 def get_client_ip(request: Request) -> str:

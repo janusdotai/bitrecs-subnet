@@ -55,7 +55,9 @@ MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:12b", "qwen2.5:32b" ]
 #                  "openai/gpt-4o-mini-search-preview", "openai/gpt-4o-mini", "qwen/qwen-turbo"]
 
 CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-flash-1.5-8b", "google/gemini-2.0-flash-001",
-                 "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini", "openrouter/quasar-alpha"]
+                 "x-ai/grok-2-1212", "qwen/qwen-turbo", "openai/gpt-4o-mini", "openai/gpt-4.1-nano"]
+
+# CLOUD_BATTERY = ["openai/gpt-4.1-nano", "openai/gpt-4.1-mini", "openai/gpt-4.1"]
 
 
 _FIRST_GET_REC = False

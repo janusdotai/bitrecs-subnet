@@ -181,3 +181,4 @@ timestamp.txt
 *.csr
 *.key
 *.pem
+*.sql

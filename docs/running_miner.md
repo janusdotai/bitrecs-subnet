@@ -2,6 +2,12 @@
 
 This guide ensures the Bitrecs miner works on **Ubuntu 24.10 LTS**. Follow the steps below.
 
+Feel free to use scripts/install_miner.sh which is the same as below and can be curl'd as
+
+```bash
+curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/scripts/install_miner.sh | bash
+```
+
 ## 1. Networking Setup
 
 ```bash
@@ -69,7 +75,7 @@ btcli w regen_hotkey
 ### Register Your Miner on the Subnet (Testnet 296)
 
 ```bash
-btcli subnet register --wallet.name miner --wallet.hotkey default --subtensor.chain_endpoint wss://test.finney.opentensor.ai:443
+btcli subnet register --netuid 296 --network wss://test.finney.opentensor.ai:443 --wallet.name default --wallet.hotkey default
 ```
 
 ## 7. Environment Configuration
@@ -79,8 +85,7 @@ Before running the miner, edit the environment file and fill in the necessary de
 ## 8. Start Miner & Validator
 
 ```bash
-pm2 start ./neurons/miner.py --name m -- --netuid 296 --subtensor.chain_endpoint wss://test.finney.opentensor.ai:443 --wallet.name default --wallet.hotkey default --logging.debug --llm.model google/gemini-2.0-flash-lite-001
-```
+pm2 start ./neurons/miner.py --name m -- --netuid 296 --subtensor.network  wss://test.finney.opentensor.ai:443 --wallet.name default --wallet.hotkey default --logging.trace --llm.model openrouter/quasar-alpha
 
 ## 9. Final Steps
 

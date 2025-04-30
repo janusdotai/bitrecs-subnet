@@ -111,7 +111,7 @@ class PromptFactory:
     Given a product SKU, select {self.num_recs} complementary products from the provided context.
     Use your persona qualities to THINK about which products to select, but return ONLY a JSON array.
     Evaluate each product name and price fields before making your recommendations. 
-    The name field is the most imporant attribute followed by price.
+    The name field is the most important attribute followed by price.
     SKU is not important and should be ignored when making recommendations.
 
     # INPUT

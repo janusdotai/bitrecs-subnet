@@ -80,7 +80,8 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
     count = 0
     for item in results:
         try:            
-            thing = json_repair.loads(item)            
+            #thing = json.loads(item)
+            thing = json_repair.loads(item)
             validated = jsonschema.validate(thing, schema)
             if validated is not None:
                 return False            
@@ -160,7 +161,7 @@ def reward(
     - float: The reward value for the miner.
     """    
     
-    bt.logging.trace("*************** VALIDATOR REWARD *************************")
+    bt.logging.trace("*************** VALIDATOR REWARD *****************")
     
     try:
         score = 0.0
@@ -201,7 +202,7 @@ def reward(
             return 0.0
 
         score = BASE_REWARD 
-        bt.logging.info(f"In reward, score: {score}, num_recs: {num_recs}, miner: {response.miner_hotkey}")
+        #bt.logging.trace(f"In reward, score: {score}, num_recs: {num_recs}, miner: {response.miner_hotkey}")
 
         #Check duration        
         headers = response.to_headers()

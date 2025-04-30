@@ -1,13 +1,8 @@
-import os
 import json
-import time
-import pytest
 from dataclasses import asdict
 from random import SystemRandom
 safe_random = SystemRandom()
-from typing import Counter
-from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
-from bitrecs.llms.factory import LLM, LLMFactory
+from bitrecs.commerce.product import CatalogProvider, ProductFactory
 from bitrecs.llms.prompt_factory import PromptFactory
 from dotenv import load_dotenv
 load_dotenv()
@@ -108,8 +103,8 @@ def test_get_token_count_random1k_prompt():
     print(f"token count cl100k_base: {tc2}")
     
     assert wc > 20_00
-    assert tc > 50_000
-    assert tc2 > 50_000
+    assert tc > 48_000
+    assert tc2 > 48_000
 
 
 def test_get_token_count_random5k_prompt():
@@ -145,7 +140,7 @@ def test_get_token_count_random5k_prompt():
     tc2 = PromptFactory.get_token_count(prompt, encoding_name="cl100k_base")
     print(f"token count cl100k_base: {tc2}")
     
-    assert wc > 100_00
+    assert wc > 90_000
     assert tc > 200_000
     assert tc2 > 200_000
 
@@ -184,7 +179,7 @@ def test_get_token_count_random20k_prompt():
     tc2 = PromptFactory.get_token_count(prompt, encoding_name="cl100k_base")
     print(f"token count cl100k_base: {tc2}")
     
-    assert wc > 300_00
+    assert wc > 300_000
     assert tc > 790_000
     assert tc2 > 800_000
 

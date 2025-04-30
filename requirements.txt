@@ -1,5 +1,5 @@
-bittensor==9.0.0rc6
-bittensor-cli==9.0.0rc3
+bittensor==9.2.0
+bittensor-cli==9.2.0
 
 starlette==0.37.2
 pydantic==2.10.4
@@ -16,5 +16,5 @@ loguru==0.7.3
 wandb==0.19.1
 tiktoken==0.8.0
 slowapi==0.1.9
-
+substrate-interface==1.7.11
 

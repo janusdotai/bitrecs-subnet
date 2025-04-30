@@ -263,6 +263,20 @@ def add_validator_args(cls, parser):
         default=True,
     )
 
+    parser.add_argument(
+        "--r2.sync_on",
+        action="store_true",        
+        help="Enables r2 miner responses sync.",
+        default=False,
+    )
+
+    # parser.add_argument(
+    #     "--r2.enabled",
+    #     action="store_false",
+    #     help="If set validator will sync miner_responses to R2.",
+    #     default=True,
+    # )
+
 
 def config(cls):
     """

@@ -11,11 +11,34 @@
 [Discord](https://discord.gg/bittensor) • [Website](https://bitrecs.ai/)
 </div>
 
-## Introduction
-Bitrecs is a novel recommendation engine</a> built on the Bittensor network. This implementation provides a framework for serving realtime e-commerce recommendations using LLMs. Miners are encouraged to experiment with their own implementations to improve latency and quality.
 
-## Goal
-**Maximize sales for online retailers (merchants)**
+## Introduction
+Bitrecs is a novel recommendation engine</a> built on the Bittensor network. This implementation provides a framework for serving realtime e-commerce recommendations using LLMs. Miners are encouraged to experiment with their own implementations to improve latency and quality. We aim to provide relevant and timely recommendations for any ecommerce site.
+
+### RecSys Landscape
+
+<img src="docs/bitrecs_q.png" alt="basic query" style="border: solid 3px #059669;" title="Recommender complexity"/>
+
+
+### Mining
+Want to earn tao by mining? Check out our [mining guide](docs/running_miner.md) to get started.
+
+### Validating 
+Interested in running a validator? See our [validator setup instructions](docs/running_validator.md) for details.
+
+## Subnet
+- Testnet: 296
+- Mainnet: TBD
+
+## Protocol
+
+<img src="docs/bitrecs_08.png" alt="basic query" style="border: solid 3px #059669;"/>
+
+
+## Subnet Goals
+ - **Maximize sales for online retailers (ecommerce merchants)**
+
+ - **Discover the best and most consistent LLMs that can produce quality, generalized recs**
 
 Common objectives shared by merchants:
 
@@ -23,7 +46,7 @@ Common objectives shared by merchants:
 2) Increase the number of customers who complete an order (conversion rate)
 3) Increase the average size of cart (average order value)
 
-This subnet is dedicated to maximizing these 3 goals for online merchants using existing store data and traffic (onsite). 
+The subnet miners are incentivized to try to maximize the goals for online merchants using *existing store data and traffic* (onsite). 
 
 ## Problem
 Global e-commerce is an estimated 20T market with a ~15% CAGR. A large portion of online sales are directly attributed to onsite recommendations (e.g customers who bought x also bought y, bundled products, last minute checkout items etc). Famously, Amazon attributes 35% of their total online sales</a> to their proprietary recommendation engine.  Unfortunately this engine is out of reach for most online retailers who are operating on smaller platforms (e.g Shopify, Woocommerce etc) which have their own recommendation solutions and widgets, often using older rules-based technology.
@@ -34,14 +57,14 @@ We are addressing a more narrow but vital area of e-commerce - [onsite product r
 
 ## Solution
 
-Tap the intelligence of Bittensor to generate realtime product recommendations for online merchants. 
+Incentivize Bittensor miners to provide realtime product recommendations for online merchants. 
 
-The first generation solution uses prompting and ICL via a Mixture of Experts to coerce recs from the latest LLMs. With a rapidly declining cost per token, we believe LLM's are well suited for this task as they excel at cold-start, zero/few shot learning
+The first generation solution uses prompting and ICL via a Voting Ensemble method to coerce recs from the latest LLMs. We explore dozens of LLMs and measure their "agreement" via sku recommendations they produce in zero-shot queries. These recs make their way back to client websites for the end user (the shopper) to consume. 
 
 <img src="docs/bitrecs_moe.png" alt="basic query" style="border: solid 3px #059669;"/>
 
-V1 uses a simple prompt template but should evolve rapidly as miners are onboarded. 
-Additionally, many LLM's have encoded valuable information about shopping cohorts, seasonality, brand affinities, customer journeys etc which we try to unlock using prompting.  
+0.8 uses a simple prompt template that we hope to evolve into a fully featured recommender as the network matures. 
+Additionally, many LLM's have encoded valuable information about shopping cohorts, seasonality, brand affinities, customer journeys etc which we try to unlock using prompting.
 
 The solution has been designed to offer merchants a free and simple plugin that works out of the box, while hiding all the complexity and abstractions of Bittensor away from them so they can continue to focus on selling and running an online business. Subnet miners can focus on competing and evolving the prompting to produce increasingly valuable and timely product recommendations.
 
@@ -62,16 +85,20 @@ The incentive mechanism ranks miner responses by performance metrics and sales e
 - Quality of responses
 - Coherence to prompt parameters
 - End user actions such as add to cart and purchases
+- Distance comparison to their peer miners
 
 ## Opportunity
 
-We think this is a great opportunity to showcase the power of Bittensor incentives with e-commerce and to create a fully aligned network of parties - an elegant flywheel of value. The barrier to entry for miners is low on this network as a GPU is not required to mine. Miners are allowed (and often encouraged) to call LLMs via APIs as the initial bootstrap of the network will mostly be driven for speed and accuracy.
+We think this is a great opportunity to showcase the power of Bittensor incentives with e-commerce and to create a fully aligned network of parties. The barrier to entry for miners is low on this network as a GPU is not required to mine. The consensus alogirthm is based on the idea that very-large LMs, when queried and ensembled together should provide better overall recs if 
+they can agree on a set.
 
-Over time, as the baseline gets set (i.e quality recs at a max request time < 3 seconds) the sales focused incentive mechanism drives miners to search and compete for more impactful recommendations. We hope that we can fine tune and balance the incentive mechanism to achieve a network that is always performing a 'best effort' on every request, with outsized rewards given to top performers which drive real, measurable value for merchants and helping them compete with the incumbents - a win for every party involved.
+Over time, as the baseline gets set (i.e quality recs at a max request time < 3 seconds) the sales focused incentive mechanism drives miners to search and compete for more impactful recommendations. We hope that we can fine tune and balance the incentive mechanism to achieve a network that is always performing a 'best effort' on every request, with outsized rewards given to top performers which drive real, measurable value for merchants and helping them compete with the incumbents.
 
 ## Evolution
 
-As we evolve this network we get closer to **1-to-1 marketing** which is viewed as the holy grail of marketing (imagine every product page you view on the web as personalized just for you, without being invasive or exploitative).  Amazon is close to this experience but falls short in many areas - they often directly sell the same products their merchants sell and this arguably creates a conflict of interest when they recommend products.
+As the subnet evolves we get closer to **personalized recommendations** which is what Netflix famously prized 1M for in 2006. Back then, the approach was to use matrix factoring to build giant user-item tables but that came at the cost of having very poor coldstart/zero shot peformance. Today, LLM's excel at zero shot recs as acknowledged by Netflix in their <a href="https://netflixtechblog.com/foundation-model-for-personalized-recommendation-1a0bd8e02d39" target="_blank">recent update</a>.
+
+ This network is specialized for ecommerce but can be adopted for a more general scenario.  
 
 Smaller retailers need access to this technology to remain competitive, and our solution is built to work with existing onsite catalogs (we never recommend 3rd party products or divert traffic to other sites - this is critical to winning merchants trust)
 
@@ -87,28 +114,27 @@ Bitrecs does not use, collect or farm any customer data, PII or anything related
 
 ### Q1 2025
 
-Testnet (Jan)
-- launch testnet with v1 engine supporting Shopify/Woocommerce
-- iterate, refine and balance incentive mechanism
-- complete merchant/miner/validator portal for easy onboarding
+
+- [x] launch testnet supporting Shopify/Woocommerce
+- [x] update scoring to use distance to try to measure LLM agreement across sets
+- [x] complete woo/shopify extensions
+
 
 ### Q2 2025
 
-- launch on mainnet 
-- establish baselines for quality of service and uptime across the subnet
-- ramp up miners and validators
-- improve and harden onsite metrics tracking
+- [ ] extension marketplace listings
+- [ ] expand miner diversity
+- [ ] launch mainnet
 
 ### Q3 2025
 
-- aggressively market and onboard merchants
-- integrate additional platforms (magento, bigcommerce, wix)
-- evolve the V1 engine with new prompting and models, miner innovations
+- [ ] onboard merchants (large catalogs)
+- [ ] integrate additional platforms (magento, bigcommerce, wix)
+- [ ] plugin features (cart history, persona switching)
 
 ### Q4 2025
 
-- improve plugins
-- overall UX, reskin and make the experience more delightful for merchants
+- [ ] overall UX, reskin and make the experience more delightful for merchants
 
 
 ## Getting Started
@@ -130,10 +156,13 @@ pytest ./tests/test_llm_2.py -s -k 'test_call_local_llm_with_20k'
  ```
 
 ### References
+<a href="https://netflixtechblog.com/foundation-model-for-personalized-recommendation-1a0bd8e02d39" target="_blank">Netflix Personalized Recommendations</a>
 
-<a href="https://www.perplexity.ai/search/recommendation-engine-NpaNi7MHQ5OFA.btgIQ4QQ" target="_blank">Recommendation Engine Perplexity</a>
+<a href="https://www.perplexity.ai/search/recommendation-engine-NpaNi7MHQ5OFA.btgIQ4QQ" target="_blank">RecSys Perplexity</a>
 
 <a href="https://www.perplexity.ai/search/how-much-does-amazon-product-r-ccxRVV5OReGL_12_QzBGzQ" target="_blank">Amazon Sales</a>
+
+<a href="https://en.wikipedia.org/wiki/Netflix_Prize" target="_blank">Netflix Prize</a>
 
 ## License
 

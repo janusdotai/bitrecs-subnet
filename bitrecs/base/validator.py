@@ -28,7 +28,8 @@ import traceback
 import anyio.to_thread
 import wandb
 import anyio
-
+from random import SystemRandom
+safe_random = SystemRandom()
 from typing import List, Union, Optional
 from dataclasses import dataclass
 from queue import SimpleQueue, Empty
@@ -41,6 +42,7 @@ from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
+from bitrecs.utils.distance import display_rec_matrix, rec_list_to_set, select_most_similar_bitrecs_safe
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (
@@ -173,7 +175,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     project_name=wandb_project,
                     entity=wandb_entity,
                     config=wandb_config
-                )
+                )                
 
 
     def serve_axon(self):
@@ -206,6 +208,69 @@ class BaseValidatorNeuron(BaseNeuron):
         await asyncio.gather(*coroutines)
 
 
+    async def analyze_similar_requests(self, num_recs: int, requests: List[BitrecsRequest]) -> Optional[List[BitrecsRequest]]:
+        if not requests or len(requests) < 2:
+            bt.logging.warning(f"Too few requests to analyze: {len(requests)} on step {self.step}")
+            return
+        
+        async def get_dynamic_top_n(num_requests: int) -> int:        
+            if num_requests < 4:
+                return 2  # Minimum pairs
+            # Calculate 33% of requests, rounded down
+            suggested = max(2, min(5, num_requests // 3)) #5 max
+            return suggested
+
+        print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")    
+        st = time.perf_counter()
+        try:
+            requests = [r for r in requests if r.is_success]
+            valid_requests = []
+            valid_recs = []
+            models_used = []
+            for br in requests:
+                try:
+                    headers = br.to_headers()
+                    dendrite_time = 0
+                    if "bt_header_dendrite_process_time" in headers:
+                        dendrite_time = float(headers["bt_header_dendrite_process_time"])
+                    skus = rec_list_to_set(br.results)
+                    if skus:
+                        valid_requests.append(br)
+                        valid_recs.append(skus)
+                        this_model = br.models_used[0] if br.models_used else "unknown"
+                        if dendrite_time < 0.7:
+                            this_model = f"{this_model} - ST"
+                        models_used.append(this_model)
+                        
+                except Exception as e:
+                    bt.logging.error(f"Error extracting SKUs from results: {e}")
+                    continue                    
+            if not valid_recs:
+                bt.logging.error(f"\033[1;33m No valid recs found to analyze on step: {self.step} \033[0m")
+                return
+            
+            top_n = await get_dynamic_top_n(len(valid_requests))
+            bt.logging.info(f"\033[1;32m Top {top_n} of {len(valid_requests)}/{len(requests)} (valid/total) bitrecs \033[0m")
+            most_similar = select_most_similar_bitrecs_safe(valid_requests, top_n)
+            if not most_similar:
+                bt.logging.warning(f"\033[33m No similar recs found in this round step: {self.step} \033[0m")
+                return
+            for sim in most_similar:
+                bt.logging.info(f"Similar requests:\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m  - batch: {sim.site_key}")
+            most_similar_indices = [valid_requests.index(req) for req in most_similar]
+            matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar_indices)
+            bt.logging.info(matrix)
+            et = time.perf_counter()
+            diff = et - st
+            bt.logging.info(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
+            return most_similar
+        
+        except Exception as e:            
+            bt.logging.error(f"analyze_similar_requests failed with exception: {e}")            
+            bt.logging.error(traceback.format_exc())
+            return
+        
+
     async def main_loop(self):
         """Main loop for the validator."""
         bt.logging.info(
@@ -231,7 +296,8 @@ class BaseValidatorNeuron(BaseNeuron):
                         pass #continue prevents regular val loop
 
                     if synapse_with_event is not None and api_enabled: #API request
-                        bt.logging.info("** Processing synapse from API server **")
+                        bt.logging.info("** Processing synapse from API server **")                        
+                        bt.logging.info(f"Queue Size: {api_queue.qsize()}")
 
                         # Validate the input synapse
                         if not validate_br_request(synapse_with_event.input_synapse):
@@ -258,9 +324,20 @@ class BaseValidatorNeuron(BaseNeuron):
                             deserialize=False,
                             run_async=True
                         )
+                        #TODO: 503 error handling async bug?
+                        any_success = any([r for r in responses if r.is_success])
+                        if not any_success:
+                            bt.logging.error("\033[1;33mRETRY ATTEMPT\033[0m")
+                            responses = await self.dendrite.forward(
+                                axons = chosen_axons, 
+                                synapse = api_request,
+                                timeout = min(5, CONST.MAX_DENDRITE_TIMEOUT),
+                                deserialize=False,
+                                run_async=True
+                            )
                         et = time.perf_counter()
-                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")
-
+                        bt.logging.trace(f"Miners responded with {len(responses)} responses in \033[1;32m{et-st:0.4f}\033[0m seconds")                        
+                       
                         # Adjust the scores based on responses from miners.
                         rewards = get_rewards(num_recs=number_of_recs_desired,
                                               ground_truth=api_request,
@@ -269,22 +346,34 @@ class BaseValidatorNeuron(BaseNeuron):
                         if not len(chosen_uids) == len(responses) == len(rewards):
                             bt.logging.error("MISMATCH in lengths of chosen_uids, responses and rewards")
                             synapse_with_event.event.set()
-                            continue
+                            continue                                                
                         
-                        #TODO: do not send back bad skus or empty results
-                        if np.all(rewards == 0):
+                        # Default - send top score to client
+                        selected_rec = rewards.argmax()
+                        good_indices = np.where(rewards > 0)[0]
+                        if len(good_indices) > 0:
+                            good_responses = [responses[i] for i in good_indices]
+                            bt.logging.info(f"Filtered to {len(good_responses)} from {len(responses)} total responses")
+                            top_k = await self.analyze_similar_requests(number_of_recs_desired, good_responses)
+                            if top_k and 1==1: #Top score now pulled from top_k
+                                winner = safe_random.sample(top_k, 1)[0]
+                                bt.logging.info(f"\033[1;32m top_k Select miner: {winner.miner_uid} with model {winner.models_used} - batch: {winner.site_key} \033[0m")
+                                bt.logging.info(f"{winner.results}")
+                                selected_rec = responses.index(winner)
+                        else:
                             bt.logging.error("\033[1;33mZERO rewards - no valid candidates in responses \033[0m")
                             synapse_with_event.event.set()
                             continue
-                            
-                        selected_rec = rewards.argmax()
-                        elected = responses[selected_rec]
+                    
+                        elected : BitrecsRequest = responses[selected_rec]
                         elected.context = "" #save bandwidth
 
                         bt.logging.info("SCORING DONE")
                         bt.logging.info(f"\033[1;32mWINNING MINER: {elected.miner_uid} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING MODEL: {elected.models_used} \033[0m")
                         bt.logging.info(f"\033[1;32mWINNING RESULT: {elected} \033[0m")
+                        bt.logging.info(f"\033[1;32mWINNING Batch Id: {elected.site_key} \033[0m")
+                        bt.logging.info(f"\033[1;32mQueue Size: {api_queue.qsize()} \033[0m")
                         
                         if len(elected.results) == 0:
                             bt.logging.error("FATAL - Elected response has no results")
@@ -295,7 +384,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         synapse_with_event.output_synapse = elected
                         # Mark the synapse as processed, API will then return to the client
                         synapse_with_event.event.set()
-                        self.total_request_in_interval +=1                       
+                        self.total_request_in_interval +=1
                     
                         bt.logging.info(f"Scored responses: {rewards}")
                         self.update_scores(rewards, chosen_uids)
@@ -599,16 +688,26 @@ class BaseValidatorNeuron(BaseNeuron):
         write_timestamp(time.time())
 
 
-    def load_state(self):        
-        state = np.load(self.config.neuron.full_path + "/state.npz")
-        self.step = state["step"]
-        self.scores = state["scores"]
-        self.hotkeys = state["hotkeys"]
-           
-        ts = read_timestamp()
-        if not ts:
-            bt.logging.error("NO STATE FOUND - first step")
-        else:
-            bt.logging.info(f"Last state loaded at {ts}")
+    def load_state(self):
+        try:
+            if not os.path.exists(self.config.neuron.full_path + "/state.npz"):
+                bt.logging.info("No state found - initializing first step")
+                self.step = 0
+                return
+
+            state = np.load(self.config.neuron.full_path + "/state.npz", allow_pickle=True)
+            self.step = int(state["step"])
+            self.scores = state["scores"]
+            self.hotkeys = state["hotkeys"]
+            
+            ts = read_timestamp()
+            if ts:
+                bt.logging.info(f"ts State last write from {ts}")
+            else:
+                bt.logging.warning("No timestamp found for loaded state")
+                
+        except Exception as e:
+            bt.logging.error(f"Failed to load state: {e}")
+            self.step = 0
 
 

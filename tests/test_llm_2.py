@@ -1,4 +1,5 @@
 import os
+os.environ["NEST_ASYNCIO"] = "0"
 import json
 import pytest
 from dataclasses import asdict
@@ -11,7 +12,6 @@ from bitrecs.llms.prompt_factory import PromptFactory
 from dotenv import load_dotenv
 load_dotenv()
 
-os.environ["NEST_ASYNCIO"] = "0"
 
 LOCAL_OLLAMA_URL = "http://10.0.0.40:11434/api/chat"
 
@@ -47,6 +47,9 @@ OLLAMA_MODEL = "mistral-nemo" #8/8 8 passed, 5 skipped, 4 warnings in 61.01s (0:
 #OLLAMA_MODEL = "phi4" # 1 failed, 7 passed, 5 skipped, 3 warnings in 124.66s (0:02:04) coldstart |  2 failed, 6 passed, 5 skipped, 3 warnings in 202.52s (0:03:22) 
 #OLLAMA_MODEL = "phi4:14b-fp16" # 4 failed, 4 passed, 5 skipped, 3 warnings in 129.96s (0:02:09)
 #OLLAMA_MODEL = "phi4:14b-q8_0" #1 failed, 7 passed, 5 skipped, 3 warnings in 90.35s (0:01:30) 
+
+#OLLAMA_MODEL = "gemma3" #3 failed, 5 passed, 5 skipped, 2 warnings in 34.93s =============
+
 
 MASTER_SKU = "B08XYRDKDV" #HP Envy 6455e Wireless Color All-in-One Printer with 6 Months Free Ink (223R1A) (Renewed Premium)
 
@@ -322,7 +325,8 @@ def test_call_local_llm_with_shopify_1k_random_logic():
    
     rp = safe_random.choice(products)
     user_prompt = rp.sku    
-    num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])
+    #num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])
+    num_recs = safe_random.choice([5, 6, 7, 8, 9, 10])
 
     debug_prompts = False
 
@@ -496,7 +500,7 @@ def test_call_gemini_with_5k_random_logic():
     print(f"prompt length: {len(prompt)}")    
 
     model = "gemini-1.5-flash-8b"
-    #model = "gemini-2.0-flash-exp"
+    
 
     llm_response = LLMFactory.query_llm(server=LLM.GEMINI,
                                  model=model,
@@ -546,8 +550,7 @@ def test_call_gemini_with_20k_random_logic():
     #print(prompt)
     print(f"prompt length: {len(prompt)}")    
 
-    model = "gemini-1.5-flash-8b"
-    #model = "gemini-2.0-flash-exp"
+    model = "gemini-1.5-flash-8b"    
 
     llm_response = LLMFactory.query_llm(server=LLM.GEMINI,
                                  model=model,

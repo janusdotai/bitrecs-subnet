@@ -34,3 +34,18 @@ class BitrecsRequest(bt.Synapse):
     models_used: list | None
     miner_uid: str | None
     miner_hotkey: str | None
+    
+
+    def to_dict(self) -> dict:
+        return {
+            'created_at': self.created_at,
+            'user': self.user,
+            'num_results': self.num_results,
+            'query': self.query,
+            'context': self.context,
+            'site_key': self.site_key,
+            'results': str(self.results) if self.results else None,
+            'models_used': str(self.models_used) if self.models_used else None,
+            'miner_uid': self.miner_uid,
+            'miner_hotkey': self.miner_hotkey
+        }

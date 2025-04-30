@@ -4,7 +4,7 @@ import logging
 import bittensor as bt
 import pandas as pd
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing_extensions import List
 from logging.handlers import RotatingFileHandler
 from bitrecs.protocol import BitrecsRequest
@@ -12,6 +12,8 @@ from bitrecs.protocol import BitrecsRequest
 
 EVENTS_LEVEL_NUM = 38
 DEFAULT_LOG_BACKUP_COUNT = 10
+
+SCHEMA_UPDATE_CUTOFF = datetime(2025, 4, 1, tzinfo=timezone.utc)
 
 
 def setup_events_logger(full_path, events_retention_size):
@@ -91,12 +93,39 @@ def log_miner_responses(step: int, responses: List[BitrecsRequest]) -> None:
         pass
 
 
+
+
+def update_table_schema(conn: sqlite3.Connection, required_columns: list) -> None:
+    """Update table schema to include any missing columns before cutoff date."""
+    if datetime.now(timezone.utc) > SCHEMA_UPDATE_CUTOFF:
+        return
+        
+    cursor = conn.cursor()
+    # Get existing columns
+    cursor.execute("PRAGMA table_info(miner_responses)")
+    existing_columns = {row[1] for row in cursor.fetchall()}
+    
+    # Add any missing columns
+    for col in required_columns:
+        if col not in existing_columns:
+            bt.logging.info(f"Adding missing column: {col}")
+            alter_sql = f'ALTER TABLE miner_responses ADD COLUMN "{col}" TEXT'
+            cursor.execute(alter_sql)
+    conn.commit()
+
+
 def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> None:
     try:
         frames = []
         for response in responses:
-            headers = response.to_headers()
-            df = pd.json_normalize(headers)          
+            if not isinstance(response, BitrecsRequest):
+                bt.logging.warning(f"Skipping invalid response type: {type(response)}")
+                continue
+            data = {
+                **response.to_headers(),
+                **response.to_dict()
+            }
+            df = pd.json_normalize(data)          
             frames.append(df)
         final = pd.concat(frames)
 
@@ -110,16 +139,25 @@ def log_miner_responses_to_sql(step: int, responses: List[BitrecsRequest]) -> No
                 final['created_at'] = created_at                
                 dtype_dict = {col: 'TEXT' for col in final.columns}                
                 cursor = conn.cursor()
+                
+                # Check if table exists
                 cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='miner_responses';")
                 table_exists = cursor.fetchone() is not None
-                if not table_exists:                    
+                
+                if not table_exists:
                     final.to_sql('miner_responses', conn, index=False, dtype=dtype_dict)
-                else:                    
+                else:
+                    # Update schema if needed
+                    update_table_schema(conn, list(final.columns))
                     final.to_sql('miner_responses', conn, index=False, if_exists='append', dtype=dtype_dict)
-
+                conn.commit()
+            except sqlite3.Error as e:
+                bt.logging.error(f"SQLite error: {e}")
+                conn.rollback()
             finally:
                 conn.close()
 
         bt.logging.info(f"Miner responses logged {len(final)}")
     except Exception as e:
-        bt.logging.error(f"Error in logging miner responses: {e}")
+        bt.logging.error(f"Error in logging miner responses: {str(e)}")
+        bt.logging.error(f"Columns in dataframe: {list(final.columns)}")

@@ -1,7 +1,11 @@
 import json
 import json_repair
 import jsonschema
+from random import SystemRandom
+safe_random = SystemRandom()
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
+from bitrecs.validator.reward import validate_result_schema
+
 
 
 
@@ -268,10 +272,34 @@ def test_convert_1k_shopify_to_bitrecs():
 
     products = ProductFactory.dedupe(products)
     assert len(products) == 350
+  
 
-    if 1==2:
-        for p in products:
-            print(f"{p.sku} - {p.name} - {p.price}")
+def test_convert_30k_walmart_to_bitrecs():
+    walmart_catalog = "./tests/data/walmart/wallmart_30k_kaggle_trimmed.csv" #30k records
+    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WALMART, walmart_catalog)
+    products = ProductFactory.convert(catalog, CatalogProvider.WALMART)
+    print(f"converted {len(products)} records")
+    assert len(products) == 30000
+    
+    for product in products:
+        if not hasattr(product, "sku"):
+            assert False
+        if not hasattr(product, "name"):
+            assert False
+        if not hasattr(product, "price"):
+            assert False
+
+    dupe_count = ProductFactory.get_dupe_count(products)
+    print(f"dupe count: {dupe_count}")
+    assert dupe_count == 0
+
+    products = ProductFactory.dedupe(products)
+    assert len(products) == 30000
+
+    sample = safe_random.sample(products, 10)
+    for p in sample:
+        print(f"{p.sku} - {p.name} - {p.price}")    
+    
 
 
 def test_product_factory_parse_all():
@@ -300,7 +328,7 @@ def test_product_factory_parse_all_dataclass():
 
     #strict schmea  json loads
     result : list[Product] = ProductFactory.try_parse_context_strict(context)
-    assert len(result) == 4 #sku not present in last record
+    assert len(result) == 0 #sku not present in last record, entire context is rejected
 
 
 def test_product_factory_parse_all_dataclass_from_dict():
@@ -368,3 +396,70 @@ def test_products_missing_sku_error():
     sku_check = ProductFactory.check_all_have_sku(products)
     print(f"sku check: {sku_check}")
     assert sku_check == False
+
+
+
+def test_schema_validation_broken_testnet_json_03_03_2025():
+    broken_json = ['{\'sku\': \'8772908155104\', \'name\': \'10" Table Top Selfie LED Lamp\', \'price\': \'46.74\'}', 
+    "{'sku': '8772909269216', 'name': 'Knock Knock Video Doorbell WiFi Enabled', 'price': '40.29'}", 
+    "{'sku': '8772908450016', 'name': 'Galaxy Starry Sky Projector Rotating', 'price': '90.34'}", 
+    "{'sku': '8761138839776', 'name': 'beFree Sound Color LED Dual Gaming Speakers', 'price': '84.42'}", 
+    "{'sku': '8772908384480', 'name': 'Universal Wireless Charging Stand for Iphone Apple Watch Airpods', 'price': '40.33'}", 
+    '{\'sku\': \'8761139331296\', \'name\': \'Impress 16" Oscillating Stand Fan (black) IM-725B\', \'price\': \'56.91\'}']
+
+    is_valid = validate_result_schema(6, broken_json)
+    assert is_valid == True
+ 
+
+def test_schema_validation_broken_testnet_json_03_03_2025_2():
+    broken_json = ['{\'sku\': \'8772908155104\', \'name\': \'10" Table Top Selfie LED Lamp\', \'price\': \'46.74\'}', 
+    "{'sku': '8772909269216', 'name': 'Knock Knock Video Doorbell WiFi Enabled', 'price': '40.29'}", 
+    "{'sku': '8772908450016', 'name': 'Galaxy Starry Sky Projector Rotating', 'price': '90.34'}", 
+    "{'sku': '8761138839776', 'name': 'beFree Sound Color LED Dual Gaming Speakers', 'price': '84.42'}", 
+    "{'sku': '8772908384480', 'name': 'Universal Wireless Charging Stand for Iphone Apple Watch Airpods', 'price': '40.33'}", 
+    '{\'sku\': \'8761139331296\', \'name\': \'Impress 16" Oscillating Stand Fan (black) IM-725B\', \'price\': \'56.91\'}']
+
+    context = json.dumps(broken_json)
+    products = ProductFactory.try_parse_context_strict(context)
+    print(products)
+    assert len(products) == 0
+    
+
+def test_schema_validation_broken_testnet_json_03_03_2025_4():
+    broken_json = ['{\'sku\': \'8761139331296\', \'name\': \'Impress 16" Oscillating Stand Fan (black) IM-725B\', \'price\': \'56.91\'}', 
+                   "{'sku': '8772909105376', 'name': 'Wireless Magnetic Charger And Power Bank For iPhone 12', 'price': '56.42'}", 
+                   "{'sku': '8761139921120', 'name': 'HD 1080P Camera 360° Panoramic PTZ Wireless Wifi Camera', 'price': '57.33'}", 
+                   "{'sku': '8772908712160', 'name': 'Watermelon iPhone Case', 'price': '24.17'}", 
+                   "{'sku': '8761139101920', 'name': 'beFree Sound 2.0 Computer Gaming Speakers with LED RGB Lights', 'price': '87.01'}", 
+                   "{'sku': '8772909269216', 'name': 'Knock Knock Video Doorbell WiFi Enabled', 'price': '40.29'}"]
+
+    context = json.dumps(broken_json)
+    products = ProductFactory.try_parse_context_strict(context)
+    print(products)
+    assert len(products) == 0
+    
+
+
+def test_strict_parser_rejects_malformed_json_quotes():
+    problematic_json = ['{\'sku\': \'8772908155104\', \'name\': \'10" Table Top Selfie LED Lamp\', \'price\': \'46.74\'}', 
+    "{'sku': '8772909269216', 'name': 'Knock Knock Video Doorbell WiFi Enabled', 'price': '40.29'}", 
+    "{'sku': '8772908450016', 'name': 'Galaxy Starry Sky Projector Rotating', 'price': '90.34'}", 
+    "{'sku': '8761138839776', 'name': 'beFree Sound Color LED Dual Gaming Speakers', 'price': '84.42'}", 
+    "{'sku': '8772908384480', 'name': 'Universal Wireless Charging Stand for Iphone Apple Watch Airpods', 'price': '40.33'}", 
+    '{\'sku\': \'8761139331296\', \'name\': \'Impress 16" Oscillating Stand Fan (black) IM-725B\', \'price\': \'56.91\'}']
+    
+    context = json.dumps(problematic_json)
+    print(context)
+
+    products = ProductFactory.try_parse_context_strict(context)
+    
+    # Verify specific rejections
+    assert len(products) < len(problematic_json)
+    
+    # Verify surviving products have proper formatting
+    for product in products:
+        assert '"' not in product.sku  # No quotes in actual data
+        assert "'" not in product.sku
+
+
+    

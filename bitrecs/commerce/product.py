@@ -2,14 +2,12 @@ import os
 import re
 import json
 import bittensor as bt
-import json_repair
 import pandas as pd
 from abc import abstractmethod
 from enum import Enum
-from typing import Counter
+from typing import Any, Counter, Dict, Set
 from pydantic import BaseModel
-from dataclasses import dataclass
-
+from dataclasses import asdict, dataclass
 
 
 class CatalogProvider(Enum):
@@ -18,6 +16,7 @@ class CatalogProvider(Enum):
     AMAZON = 2
     WOOCOMMERCE = 3
     BIGCOMMERCE = 4
+    WALMART = 5
 
 
 @dataclass
@@ -25,10 +24,15 @@ class Product:
     sku: str
     name: str
     price: str
+
+    def to_dict(self) -> Dict[str, Any]:
+        return asdict(self)
+    
+    def to_json(self) -> str:
+        return json.dumps(self.to_dict())
     
 
 class ProductFactory:
-
 
     @staticmethod
     def tryload_catalog(file_path: str, max_rows=100_000) -> list:
@@ -46,9 +50,11 @@ class ProductFactory:
             
             df = pd.read_csv(file_path)
             #WooCommerce Format
-            columns = ["ID", "Type", "SKU", "Name", "Published", "Description", "In stock?", "Stock", "Regular price", "Categories"]            
+            columns = ["ID", "Type", "SKU", "Name", "Published", "Description", "In stock?", "Stock", "Regular price", "Categories"]
             df = df[[c for c in columns if c in df.columns]]            
-            df['Description'] = df['Description'].str.replace(r'<[^<>]*>', '', regex=True)
+            
+            if 'Description' in df.columns:
+                df['Description'] = df['Description'].str.replace(r'<[^<>]*>', '', regex=True)
             
             #Only take simple and variable products
             #product_types = ["simple", "variable"]
@@ -59,6 +65,14 @@ class ProductFactory:
             float_cols = df.select_dtypes(include=['float64']).columns
             df[float_cols] = df[float_cols].astype(object)
             df.fillna('', inplace=True)
+            
+            # df = df.sort_values(by=['sku', 'name', 'price'], 
+            #                   ascending=[True, True, True],
+            #                   na_position='last')
+
+            df = df.sort_values(by=['name', 'price'], 
+                            ascending=[True, True],
+                            na_position='last')
 
             df = df.head(max_rows)
             df = df.to_dict(orient='records')
@@ -68,6 +82,268 @@ class ProductFactory:
             return []
         
         
+        
+    @staticmethod
+    def tryload_catalog_to_json(provider: CatalogProvider, file_path: str, max_rows=100_000) -> str:
+        """
+        Convert a product export .csv into JSON
+
+        """
+        if not os.path.exists(file_path):   
+            bt.logging.error(f"File not found: {file_path}")
+            raise FileNotFoundError(f"File not found: {file_path}")
+        match provider:
+            case CatalogProvider.WOOCOMMERCE:
+                thing = ProductFactory.tryload_catalog(file_path, max_rows)
+                return json.dumps(thing, indent=2)
+            case CatalogProvider.SHOPIFY:
+                thing = ShopifyConverter.tryload_catalog_shopify(file_path, max_rows)                
+                return json.dumps(thing, indent=2)
+            case CatalogProvider.WALMART:
+                thing = WalmartConverter.tryload_catalog(file_path, max_rows)        
+                return json.dumps(thing, indent=2)
+            case _:
+               raise ValueError(f"Invalid provider: {provider}")
+ 
+
+    @staticmethod
+    def try_parse_context(context: str) -> list[Product]:
+        """
+        Default converter expects a json array of products with sku/name/price fields
+
+        """
+        try:
+            store_catalog: list[Product] = json.loads(context)
+            return store_catalog
+        except Exception as e:
+            bt.logging.error(f"try_parse_context Exception: {e}")
+            return []
+        
+        
+    @staticmethod
+    def try_parse_context_strict(context: str) -> list[Product]:
+        """
+        Strict converter expects a json array of products with sku/name/price fields
+
+        """ 
+        result: list[Product] = []        
+        try:
+            for product in json.loads(context):
+                if 'sku' not in product:
+                    continue
+                if 'name' not in product:
+                    continue
+                if 'price' not in product:
+                    continue
+
+                sku = str(product["sku"])
+                name = str(product["name"])
+                name = re.sub(r"[^A-Za-z0-9 ]", "", name)
+                price = str(product["price"])
+                thing = Product(sku=sku, name=name, price=price)
+                result.append(thing)
+        except Exception as e:
+            bt.logging.error(f"try_parse_context3 Exception: {e}")
+            pass
+        
+        sorted_result = sorted(result, key=lambda x: x.name) #TODO: perf test on large context
+        return sorted_result
+
+
+   
+    @staticmethod
+    def get_dupe_count(products: list[Product]) -> int:
+        # try:
+        #     if not products or len(products) == 0:
+        #         return 0
+        #     sku_counts = Counter(product.sku for product in products)
+        #     return sum(count - 1 for count in sku_counts.values() if count > 1)
+        # except AttributeError as a:
+        #     bt.logging.error(f"WARNING - get_dupe_count failed: {a}")
+        #     return 0
+        return ProductFactory.get_dupe_count_list(products)
+        
+        
+    @staticmethod
+    def get_dupe_count_list(products: list) -> int:        
+        try:
+            if not products or len(products) == 0:
+                return 0
+            
+            sku_counts = Counter(
+                product.sku if isinstance(product, Product) else product.get('sku')
+                for product in products
+            )
+            return sum(count - 1 for count in sku_counts.values() if count > 1)
+        except AttributeError as a:
+            bt.logging.error(f"WARNING - get_dupe_count_list failed: {a}")
+            return -1
+        except Exception as e:
+            bt.logging.error(f"ERROR - get_dupe_count_list encountered an unexpected error: {e}")
+            return -1
+        
+    
+    # @staticmethod
+    # def dedupe(products: list[Product]) -> list[Product]:
+    #     unique_products = {}
+    #     for product in products:
+    #         if product.sku not in unique_products:
+    #             unique_products[product.sku] = product
+    #     return list(unique_products.values())
+    
+
+    @staticmethod
+    def dedupe(products: list[Product]) -> Set[Product]:
+        """Dedupe and sort"""
+        seen = set()
+        deduped = []
+        for product in products:
+            if product.sku not in seen:
+                seen.add(product.sku)
+                deduped.append(product)
+        deduped = sorted(deduped, key=lambda x: (x.name.lower(), x.price))
+        return deduped
+    
+               
+    @staticmethod
+    def check_all_have_sku(product_list: list) -> bool:
+        try:
+            product_dicts = []
+            for product in product_list:
+                try:
+                    product_dict = json.loads(product.replace("'", '"'))
+                    if isinstance(product_dict, dict):
+                        product_dicts.append(product_dict)
+                    else:
+                        bt.logging.error(f"Product is not a dictionary: {product}")
+                except json.JSONDecodeError as e:
+                    bt.logging.error(f"JSON parsing error: {e} for product: {product}")
+                    continue
+
+            all_have_sku = all('sku' in product for product in product_dicts)
+            return all_have_sku
+        except Exception as e:
+            bt.logging.error(f"Unexpected error in check_all_have_sku: {e}")
+            return False
+
+        
+    @staticmethod
+    def convert(context: str, provider: CatalogProvider) -> list[Product]:
+        """
+            Convert a raw store catalog json into Products
+
+        """
+        match provider:
+            case CatalogProvider.SHOPIFY:
+                return ShopifyConverter().convert(context)                
+            case CatalogProvider.AMAZON:
+                return AmazonConverter().convert(context)
+            case CatalogProvider.WOOCOMMERCE:
+                return WoocommerceConverter().convert(context)
+            case CatalogProvider.BIGCOMMERCE:
+                return BigcommerceConverter().convert(context)
+            case CatalogProvider.WALMART:
+                return WalmartConverter().convert(context)
+            case _:
+                raise NotImplementedError("invalid provider")
+
+
+class BaseConverter(BaseModel):
+    
+    @abstractmethod
+    def convert(self, context: str) -> list[Product]:
+        raise NotImplementedError("BaseConverter not implemented")
+    
+    def clean(self, raw_value: str) -> str:        
+        result = re.sub(r"[^A-Za-z0-9 ]", "", raw_value)
+        return result.strip()
+    
+
+class WoocommerceConverter(BaseConverter):    
+  
+    def convert(self, context: str) -> list[Product]:
+        """
+        converts from product_catalog.csv to Products
+
+        args:
+            context: str - woocommerce product export converted to json            
+
+        """
+        result : list[Product] = []
+        for p in json.loads(context):
+            try:
+                sku = p.get("sku")
+                name = p.get("name")
+                price = p.get("price", "0.00")             
+                if not sku or not name:
+                    continue
+                if price is None or price == 'None':
+                    price = "0.00"
+                sku = str(sku)
+                price = str(price)
+                name = self.clean(name)
+                result.append(Product(sku=sku, name=name, price=price))
+            except Exception as e:
+                bt.logging.error(f"WoocommerceConverter.convert Exception: {e}")
+                continue
+        return result
+        
+
+    
+class AmazonConverter(BaseConverter):
+    
+    def convert(self, context: str) -> list[Product]:
+        """
+        converts from amazon_fashion_sample_1000.json format
+
+        """
+        result : list[Product] = []
+        for p in json.loads(context):
+            try:
+                sku = p.get("asin")
+                if p["metadata"]:
+                    name = p["metadata"].get("title", "metadata not found")
+                    price = p["metadata"].get("price", "0.00")
+                if not sku or not name:
+                    continue
+                if "metadata not found" in name:
+                    continue
+                if price is None or price == 'None':                    
+                    price = "0.00"
+                price = str(price)
+                name = self.clean(name)
+                result.append(Product(sku=sku, name=name, price=price))
+            except Exception as e:
+                bt.logging.error(f"AmazonConverter.convert Exception: {e}")
+                continue
+        return result
+    
+
+class ShopifyConverter(BaseConverter):
+    
+    def convert(self, context: str) -> list[Product]:
+        """
+        converts from shopify export .csv format
+
+        """
+        result : list[Product] = []
+        for p in json.loads(context):
+            try:
+                sku = p.get("sku")
+                name = p.get("name")
+                price = p.get("price", "0.00")             
+                if not sku or not name:
+                    continue
+                if price is None or price == 'None':
+                    price = "0.00"
+                price = str(price)
+                name = self.clean(name)
+                result.append(Product(sku=sku, name=name, price=price))
+            except Exception as e:
+                bt.logging.error(f"ShopifyConverter.convert Exception: {e}")
+                continue
+        return result
+
     @staticmethod
     def tryload_catalog_shopify(file_path: str, max_rows=100_000) -> list:
         """
@@ -149,253 +425,7 @@ class ProductFactory:
             return products
         except Exception as e:
             print(f"Error loading catalog: {e}")
-            return []
-        
-        
-        
-    @staticmethod
-    def tryload_catalog_to_json(provider: CatalogProvider, file_path: str, max_rows=100_000) -> str:
-        """
-        Convert a product export .csv into JSON
-
-        """
-        if not os.path.exists(file_path):   
-            bt.logging.error(f"File not found: {file_path}")
-            raise FileNotFoundError(f"File not found: {file_path}")
-        match provider:
-            case CatalogProvider.WOOCOMMERCE:
-                thing = ProductFactory.tryload_catalog(file_path, max_rows)
-                return json.dumps(thing, indent=2)
-            case CatalogProvider.SHOPIFY:
-                thing = ProductFactory.tryload_catalog_shopify(file_path, max_rows)
-                return json.dumps(thing, indent=2)
-            case _:
-               raise ValueError(f"Invalid provider: {provider}")
- 
-
-    @staticmethod
-    def try_parse_context(context: str) -> list[Product]:
-        """
-        Default converter expects a json array of products with sku/name/price fields
-
-        """
-        try:
-            store_catalog: list[Product] = json.loads(context)
-            return store_catalog
-        except Exception as e:
-            bt.logging.error(f"try_parse_context Exception: {e}")
-            return []
-        
-        
-    @staticmethod
-    def try_parse_context_strict(context: str) -> list[Product]:
-        """
-        Strict converter expects a json array of products with sku/name/price fields
-
-        """ 
-        result: list[Product] = []
-        for p in json.loads(context):
-            try:
-                if 'sku' not in p:                    
-                    continue
-                if 'name' not in p:                    
-                    continue
-                if 'price' not in p:                    
-                    continue
-                
-                good_json_string = json_repair.repair_json(str(p))
-                product = json.loads(good_json_string)
-
-                sku = product["sku"]
-                name = product["name"]
-                name = re.sub(r"[^A-Za-z0-9 ]", "", name)
-                price = product["price"]
-
-                thing = Product(sku=sku, name=name, price=price)
-                result.append(thing)
-            except Exception as e:
-                bt.logging.error(f"try_parse_context3 Exception: {e}")
-                continue
-        return result
-
-
-   
-    @staticmethod
-    def get_dupe_count(products: list[Product]) -> int:
-        # try:
-        #     if not products or len(products) == 0:
-        #         return 0
-        #     sku_counts = Counter(product.sku for product in products)
-        #     return sum(count - 1 for count in sku_counts.values() if count > 1)
-        # except AttributeError as a:
-        #     bt.logging.error(f"WARNING - get_dupe_count failed: {a}")
-        #     return 0
-        return ProductFactory.get_dupe_count_list(products)
-        
-        
-    @staticmethod
-    def get_dupe_count_list(products: list) -> int:        
-        try:
-            if not products or len(products) == 0:
-                return 0
-            
-            sku_counts = Counter(
-                product.sku if isinstance(product, Product) else product.get('sku')
-                for product in products
-            )
-            return sum(count - 1 for count in sku_counts.values() if count > 1)
-        except AttributeError as a:
-            bt.logging.error(f"WARNING - get_dupe_count_list failed: {a}")
-            return -1
-        except Exception as e:
-            bt.logging.error(f"ERROR - get_dupe_count_list encountered an unexpected error: {e}")
-            return -1
-        
-    
-    @staticmethod
-    def dedupe(products: list[Product]) -> list[Product]:
-        unique_products = {}
-        for product in products:
-            if product.sku not in unique_products:
-                unique_products[product.sku] = product
-        return list(unique_products.values())
-    
-               
-    @staticmethod
-    def check_all_have_sku(product_list: list) -> bool:
-        try:
-            product_dicts = []
-            for product in product_list:
-                try:
-                    product_dict = json.loads(product.replace("'", '"'))
-                    if isinstance(product_dict, dict):
-                        product_dicts.append(product_dict)
-                    else:
-                        bt.logging.error(f"Product is not a dictionary: {product}")
-                except json.JSONDecodeError as e:
-                    bt.logging.error(f"JSON parsing error: {e} for product: {product}")
-                    continue
-
-            all_have_sku = all('sku' in product for product in product_dicts)
-            return all_have_sku
-        except Exception as e:
-            bt.logging.error(f"Unexpected error in check_all_have_sku: {e}")
-            return False
-
-        
-    @staticmethod
-    def convert(context: str, provider: CatalogProvider) -> list[Product]:
-        """
-            Convert a raw store catalog json into Products
-
-        """
-        match provider:
-            case CatalogProvider.SHOPIFY:
-                return ShopifyConverter().convert(context)                
-            case CatalogProvider.AMAZON:
-                return AmazonConverter().convert(context)
-            case CatalogProvider.WOOCOMMERCE:
-                return WoocommerceConverter().convert(context)
-            case CatalogProvider.BIGCOMMERCE:
-                return BigcommerceConverter().convert(context)
-            case _:
-                raise NotImplementedError("invalid provider")
-
-
-class BaseConverter(BaseModel):
-    
-    @abstractmethod
-    def convert(self, context: str) -> list[Product]:
-        raise NotImplementedError("BaseConverter not implemented")
-    
-    def clean(self, raw_value: str) -> str:        
-        result = re.sub(r"[^A-Za-z0-9 ]", "", raw_value)
-        return result.strip()
-    
-
-class WoocommerceConverter(BaseConverter):    
-  
-    def convert(self, context: str) -> list[Product]:
-        """
-        converts from product_catalog.csv to Products
-
-        args:
-            context: str - woocommerce product export converted to json            
-
-        """
-        result : list[Product] = []
-        for p in json.loads(context):
-            try:
-                sku = p.get("sku")
-                name = p.get("name")
-                price = p.get("price", "0.00")             
-                if not sku or not name:
-                    continue
-                if price is None or price == 'None':
-                    price = "0.00"
-                price = str(price)
-                name = self.clean(name)
-                result.append(Product(sku=sku, name=name, price=price))
-            except Exception as e:
-                bt.logging.error(f"WoocommerceConverter.convert Exception: {e}")
-                continue
-        return result
-        
-
-    
-class AmazonConverter(BaseConverter):
-    
-    def convert(self, context: str) -> list[Product]:
-        """
-        converts from amazon_fashion_sample_1000.json format
-
-        """
-        result : list[Product] = []
-        for p in json.loads(context):
-            try:
-                sku = p.get("asin")
-                if p["metadata"]:
-                    name = p["metadata"].get("title", "metadata not found")
-                    price = p["metadata"].get("price", "0.00")
-                if not sku or not name:
-                    continue
-                if "metadata not found" in name:
-                    continue
-                if price is None or price == 'None':                    
-                    price = "0.00"
-                price = str(price)
-                name = self.clean(name)
-                result.append(Product(sku=sku, name=name, price=price))
-            except Exception as e:
-                bt.logging.error(f"AmazonConverter.convert Exception: {e}")
-                continue
-        return result
-    
-
-class ShopifyConverter(BaseConverter):
-    
-    def convert(self, context: str) -> list[Product]:
-        """
-        converts from shopify export .csv format
-
-        """
-        result : list[Product] = []
-        for p in json.loads(context):
-            try:
-                sku = p.get("sku")
-                name = p.get("name")
-                price = p.get("price", "0.00")             
-                if not sku or not name:
-                    continue
-                if price is None or price == 'None':
-                    price = "0.00"
-                price = str(price)
-                name = self.clean(name)
-                result.append(Product(sku=sku, name=name, price=price))
-            except Exception as e:
-                bt.logging.error(f"ShopifyConverter.convert Exception: {e}")
-                continue
-        return result    
+            return []    
 
 
 class BitrecsConverter(BaseConverter):
@@ -422,11 +452,87 @@ class BitrecsConverter(BaseConverter):
                 bt.logging.error(f"GenericConverter.convert Exception: {e}")
                 continue
         return result
-     
-    
 
     
 class BigcommerceConverter(BaseConverter):
     
     def convert(self, context: str) -> list[Product]:
         raise NotImplementedError("Bigcommerce not implemented")
+    
+    
+class WalmartConverter(BaseConverter):    
+  
+    def convert(self, context: str) -> list[Product]:
+        """
+        converts from wallmart_30k_kaggle_trimmed.csv to Products
+
+        args:
+            context: str - wallmart_30k_kaggle_trimmed product export converted to json            
+
+        """
+        result : list[Product] = []
+        for p in json.loads(context):
+            try:
+                sku = p.get("sku")
+                name = p.get("name")
+                price = p.get("price", "0.00")             
+                if not sku or not name:
+                    continue
+                if price is None or price == 'None':
+                    price = "0.00"
+                sku = str(sku)
+                price = str(price)
+                name = self.clean(name)
+                brand = p.get("brand", "")
+                if brand:
+                    brand = self.clean(brand)
+                    name = f"{name} - {brand}"
+                
+                result.append(Product(sku=sku, name=name, price=price))
+            except Exception as e:
+                bt.logging.error(f"WalmartConverter.convert Exception: {e}")
+                continue
+        return result
+    
+
+    @staticmethod
+    def tryload_catalog(file_path: str, max_rows=100_000) -> list:
+        """
+        Try to load a walmart catalog into a normalized list
+
+        :param file_path: Path to the Walmart CSV file
+        :param max_rows: Maximum number of rows to process
+        :return: List of dictionaries with 'sku', 'name', 'price'
+        """
+        try:
+            if not os.path.exists(file_path):   
+                bt.logging.error(f"File not found: {file_path}")
+                raise FileNotFoundError(f"File not found: {file_path}")
+            
+            df = pd.read_csv(file_path)            
+            columns = ["UNIQUE_ID", "PRODUCT_NAME", "LIST_PRICE", "SALE_PRICE", "BRAND", "ITEM_NUMBER", "GTIN", "CATEGORY", "IN_STOCK"]            
+            df = df[[c for c in columns if c in df.columns]]            
+            df['PRODUCT_NAME'] = df['PRODUCT_NAME'].str.replace(r'<[^<>]*>', '', regex=True)
+            df['BRAND'] = df['BRAND'].str.replace(r'<[^<>]*>', '', regex=True)
+            df['CATEGORY'] = df['CATEGORY'].str.replace(r'<[^<>]*>', '', regex=True)            
+            
+            #Final renaming of columns
+            df = df.rename(columns={'GTIN': 'sku', 'PRODUCT_NAME': 'name', 'LIST_PRICE': 'price', 'IN_STOCK': 'InStock', 'BRAND' : 'brand'})
+            float_cols = df.select_dtypes(include=['float64']).columns
+            df[float_cols] = df[float_cols].astype(object)
+            df.fillna('', inplace=True)
+
+            # df = df.sort_values(by=['sku', 'name', 'price'], 
+            #                   ascending=[True, True, True],
+            #                   na_position='last')
+
+            df = df.sort_values(by=['name', 'price'], 
+                              ascending=[True, True],
+                              na_position='last')
+
+            df = df.head(max_rows)
+            df = df.to_dict(orient='records')
+            return df
+        except Exception as e:
+            bt.logging.error(str(e))
+            return []

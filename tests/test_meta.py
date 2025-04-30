@@ -1,10 +1,6 @@
-import pytest
-import os
-from pydantic import BaseModel
 from bitrecs.utils.version import LocalMetadata
 from bitrecs import __spec_version__ as spec_version
 from bitrecs import __version__ as this_version
-
 
 
 def test_basic_meta_init_state_ok():
@@ -49,7 +45,7 @@ def test_version_returns_ok():
     assert len(v) > 0
     print(f"Version: {v}")
     assert v == this_version
-    assert v == "0.7.0"
+    assert v == "0.8.0"
 
 
 def test_version_spec_returns_ok():

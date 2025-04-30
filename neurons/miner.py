@@ -35,8 +35,6 @@ from bitrecs.utils.gpu import GPUInfo
 from bitrecs.utils.version import LocalMetadata
 from bitrecs.utils import constants as CONST
 from dotenv import load_dotenv
-
-from bitrecs.validator.rules import validate_br_request
 load_dotenv()
 
 
@@ -330,11 +328,7 @@ class Miner(BaseMinerNeuron):
         bt.logging.debug(
             f"Prioritizing {synapse.dendrite.hotkey} with value: {priority}"
         )
-        return priority    
-    
-
-    # async def verify(self, synapse: BitrecsRequest) -> bool:        
-    #     return validate_br_request(synapse)
+        return priority
     
     
     def save_state(self):
@@ -359,9 +353,8 @@ class Miner(BaseMinerNeuron):
             case LLM.VLLM:
                 model = "NousResearch/Meta-Llama-3-8B-Instruct"
                 #model = "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF"
-            case LLM.GEMINI:
-                #model = "gemini-1.5-flash"
-                model = "gemini-2.0-flash-exp"
+            case LLM.GEMINI:                                
+                model = "gemini-2.0-flash"
             case LLM.GROK:
                 model = "grok-beta"
             case LLM.CLAUDE:

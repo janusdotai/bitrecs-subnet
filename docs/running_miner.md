@@ -86,7 +86,6 @@ Before running the miner, edit the environment file and fill in the necessary de
 
 ```bash
 pm2 start ./neurons/miner.py --name m -- --netuid 296 --subtensor.network  wss://test.finney.opentensor.ai:443 --wallet.name default --wallet.hotkey default --logging.trace --llm.model openrouter/quasar-alpha
-```
 
 ## 9. Final Steps
 

@@ -1,5 +1,5 @@
 import os
-import socket
+os.environ["NEST_ASYNCIO"] = "0"
 import time
 import warnings
 import pytest
@@ -9,11 +9,9 @@ from bitrecs.utils.version import LocalMetadata
 from bitrecs.validator.forward import get_bitrecs_dummy_request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .utils import socket_ip
-
 from dotenv import load_dotenv
 load_dotenv()
 
-os.environ["NEST_ASYNCIO"] = "0"
 
 TEST_VALIDATOR_IP = os.getenv("TEST_VALIDATOR_IP")
 if not TEST_VALIDATOR_IP:

@@ -5,7 +5,7 @@ class ChatGPT:
     def __init__(self, 
                  key,
                  model="gpt-4o-mini", 
-                 system_prompt="You are a helpful AI assistant.", 
+                 system_prompt="You are a helpful assistant.", 
                  temp=0.0):
         
         self.CHATGPT_API_KEY = key

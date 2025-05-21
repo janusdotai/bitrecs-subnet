@@ -5,7 +5,7 @@ class OpenRouter:
     def __init__(self, 
                  key,
                  model="google/gemini-flash-1.5-8b", 
-                 system_prompt="You are a helpful AI assistant.", 
+                 system_prompt="You are a helpful assistant.", 
                  temp=0.0
         ):
 

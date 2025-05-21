@@ -528,3 +528,55 @@ def test_call_multiple_open_router_amazon_5k_random():
     assert attempt_count == success_count
     print("FULL PASS")
 
+
+def test_call_chutes():
+    #raw_products = product_5k() 
+    #raw_products = product_1k()
+    raw_products = product_woo()
+      
+    products = ProductFactory.dedupe(raw_products)
+    #print(f"after de-dupe: {len(products)} records")    
+    rp = safe_random.choice(products)
+    user_prompt = rp.sku    
+    num_recs = safe_random.choice([3, 4, 5])
+
+    debug_prompts = False
+
+    match = [products for products in products if products.sku == user_prompt][0]
+    print(match)    
+    # print(f"num_recs: {num_recs}")
+
+    context = json.dumps([asdict(products) for products in products])
+    factory = PromptFactory(sku=user_prompt, 
+                            context=context, 
+                            num_recs=num_recs, 
+                            load_catalog=False, 
+                            debug=debug_prompts)
+    
+    prompt = factory.generate_prompt()
+    #print(prompt)
+    print(f"PROMPT SIZE: {len(prompt)}")
+ 
+    wc = PromptFactory.get_word_count(prompt)
+    print(f"word count: {wc}")
+
+    tc = PromptFactory.get_token_count(prompt)
+    print(f"token count: {tc}")    
+    
+    llm_response = LLMFactory.query_llm(server=LLM.CHUTES,
+                                 model="deepseek-ai/DeepSeek-V3",
+                                 system_prompt="You are a helpful assistant", 
+                                 temp=0.0, 
+                                 user_prompt=prompt)
+    parsed_recs = PromptFactory.tryparse_llm(llm_response)
+    print(f"parsed {len(parsed_recs)} records")
+    #print(parsed_recs)
+    assert len(parsed_recs) == num_recs
+    #check uniques
+    skus = [item['sku'] for item in parsed_recs]
+    counter = Counter(skus)
+    for sku, count in counter.items():
+        print(f"{sku}: {count}")
+        assert count == 1
+    assert user_prompt not in skus
+    

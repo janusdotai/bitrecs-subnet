@@ -238,8 +238,8 @@ class BaseValidatorNeuron(BaseNeuron):
                         valid_requests.append(br)
                         valid_recs.append(skus)
                         this_model = br.models_used[0] if br.models_used else "unknown"
-                        if dendrite_time < 0.7:
-                            this_model = f"{this_model} - ST"
+                        if dendrite_time < 1:
+                            this_model = f"{this_model} - X"
                         models_used.append(this_model)
                         
                 except Exception as e:

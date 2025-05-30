@@ -1,16 +1,17 @@
-
-
 import re
 import json
 import time
 import tiktoken
 import bittensor as bt
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from bitrecs.commerce.product import Product, ProductFactory
+from bitrecs.commerce.user_profile import UserProfile
 
 
 class PromptFactory:
+
+    SEASON = "spring/summer"    
     
     PERSONAS = {
         "luxury_concierge": {
@@ -40,44 +41,29 @@ class PromptFactory:
     }
 
     def __init__(self, 
-                 sku, 
-                 context, 
-                 num_recs=5, 
-                 load_catalog=False, 
-                 debug=False, 
-                 season="spring/summer", 
-                 persona="ecommerce_retail_store_manager"):
-        self.sku = sku
-        self.context = context
-        self.num_recs = num_recs
+                 sku: str, 
+                 context: str, 
+                 num_recs: int = 5,
+                 load_catalog: bool = False, 
+                 debug: bool = False,
+                 profile: Optional[UserProfile] = None) -> None:
+        
         if self.num_recs < 1 or self.num_recs > 20:
             raise ValueError("num_recs must be between 1 and 20")        
+
+        self.sku = sku
+        self.context = context
+        self.num_recs = num_recs     
         self.load_catalog = load_catalog
         self.debug = debug
         self.catalog = []
-        self.season = "spring/summer" if not season else season
-        self.persona = "ecommerce_retail_store_manager" if not persona else persona
-        
-        if self.persona not in self.PERSONAS:
-            raise ValueError(f"Invalid persona. Available personas: {', '.join(self.PERSONAS.keys())}")
- 
-
-    def list_available_personas(self):
-        """Return a list of available personas."""
-        return list(self.PERSONAS.keys())
-        
-
-    def generate_prompt_with_cart(self, cart: List[Product]) -> str:
-        if len(cart) == 0:
-            raise ValueError("Cart cannot be empty")
-        self.cart = cart
-        self.update_context()
-        return self.generate_prompt()
-    
-
-    def update_context(self) -> str:
-        raise NotImplementedError("update_context")
-    
+        self.cart = []
+        self.orders = []
+        self.season =  PromptFactory.SEASON
+        if not profile:       
+            self.persona = "ecommerce_retail_store_manager"
+        else:            
+            self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")
 
 
     def generate_prompt(self) -> str:

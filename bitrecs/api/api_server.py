@@ -251,7 +251,7 @@ class ApiServer:
             response_text = "Bitrecs Took {:.2f} seconds to process this request".format(total_time)
 
             response = {
-                "user": response.user, 
+                "user": "", 
                 "original_query": response.query,
                 "status_code": "200", #front end widgets expects this do not change
                 "status_text": "OK", #front end widgets expects this do not change
@@ -296,12 +296,10 @@ class ApiServer:
         """
 
         try:
-
             st_a = int(time.time())
 
             await self.verify_request2(request, x_signature, x_timestamp)
-
-            #store_catalog = ProductFactory.try_parse_context(request.context)
+            
             store_catalog = ProductFactory.try_parse_context_strict(request.context)
             catalog_size = len(store_catalog)
             bt.logging.trace(f"REQUEST CATALOG SIZE: {catalog_size}")
@@ -310,13 +308,6 @@ class ApiServer:
                 await self.log_counter(False)
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - invalid catalog - size", "status_code": 400})
-            
-            # all_skus_check = ProductFactory.check_all_have_sku(store_catalog)
-            # if not all_skus_check:
-            #     bt.logging.error(f"API invalid catalog - missing sku field in records")
-            #     await self.log_counter(False)
-            #     return JSONResponse(status_code=400,
-            #                         content={"detail": "error - invalid catalog - missing sku", "status_code": 400})
 
             dupes = ProductFactory.get_dupe_count_list(store_catalog)
             if dupes == -1:
@@ -360,7 +351,7 @@ class ApiServer:
             final_recs = [r for r in final_recs if r is not None]
 
             response = {
-                "user": response.user, 
+                "user": "", 
                 "original_query": response.query,
                 "status_code": "200", #front end widgets expects this do not change
                 "status_text": "OK", #front end widgets expects this do not change

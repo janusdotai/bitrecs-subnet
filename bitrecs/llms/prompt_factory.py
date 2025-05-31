@@ -124,7 +124,7 @@ class PromptFactory:
 
     Example format:
     [
-        {{"sku": "ABC", "name": "Men's Lightweight Hooded Rain Jacket", "price": "149", "reason": "Since <query> indicates the user is looking at mens rainboots, given the season a mens raincoat should be a good fit"}},
+        {{"sku": "ABC", "name": "Men's Lightweight Hooded Rain Jacket", "price": "149", "reason": "Since the user is looking at mens rainboots, given the season a mens raincoat should be a good fit"}},
         {{"sku": "DEF", "name": "Davek Elite Umbrella", "price": "159", "reason": "An Umbrella would go nicely with a Lightweight Hooded Rain Jacket and is often paired with it"}}
     ]"""
 

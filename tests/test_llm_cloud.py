@@ -32,7 +32,7 @@ map = [
     {"provider": LLM.OPEN_ROUTER, "model": "openai/gpt-4.1-nano"},
     
     {"provider": LLM.GROK, "model": "grok-2-latest"},
-    {"provider": LLM.GEMINI, "model": "google/gemini-2.0-flash-lite-001"},
+    {"provider": LLM.GEMINI, "model": "gemini-2.0-flash-001"},
     {"provider": LLM.CLAUDE, "model": "anthropic/claude-3.5-haiku"}
 ]
 

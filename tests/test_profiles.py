@@ -5,6 +5,20 @@ from bitrecs.utils.misc import ttl_cache
 from bitrecs.commerce.user_profile import UserProfile
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 
+TEST_PROFILE = """{"id":"123","created_at":"2025-05-31T18:45:13Z",
+"cart":[{"sku":"24-WB02","name":"Compete Track Tote","price":"32"},{"sku":"24-WG087","name":"Sprite Yoga Strap 10 foot","price":"21"}],
+"orders":[
+{"order_id":"3354","total":"59.89","status":"checkout-draft","created_at":"2025-05-31T18:34:02Z","items":[{"sku":"24-WB02","name":"Compete Track Tote","price":"32"},{"sku":"24-WG087","name":"Sprite Yoga Strap 10 foot","price":"21"}]},
+{"order_id":"3265","total":"48.59","status":"processing","created_at":"2025-03-23T18:12:15Z","items":[{"sku":"24-WB03","name":"Driven Backpack","price":"36"},{"sku":"24-UG06","name":"Affirm Water Bottle","price":"7"}]},
+{"order_id":"3263","total":"275.72","status":"processing","created_at":"2025-03-19T14:23:21Z","items":[{"sku":"24-UG03","name":"Harmony Lumaflex™ Strength Band Kit","price":"22"},{"sku":"24-MB03","name":"Crown Summit Backpack","price":"38"},{"sku":"24-WG02","name":"Didi Sport Watch","price":"92"}]},
+{"order_id":"3019","total":"134.47","status":"processing","created_at":"2024-12-31T02:46:19Z","items":[{"sku":"WS07-S-Black","name":"Juliana Short-Sleeve Tee - S, Black","price":"42"},{"sku":"MP01-33-Black","name":"Caesar Warm-Up Pant - 33, Black","price":"35"}]},
+{"order_id":"3010","total":"101.70","status":"processing","created_at":"2024-12-30T21:12:15Z","items":[{"sku":"WP07-28-Black","name":"Aeon Capri - 28, Black","price":"48"},{"sku":"WH05-XS-Orange","name":"Selene Yoga Hoodie - XS, Orange","price":"42"}]},
+{"order_id":"3006","total":"36.16","status":"processing","created_at":"2024-12-30T20:56:01Z","items":[{"sku":"WJ09-S-Blue","name":"Jade Yoga Jacket - S, Blue","price":"32"}]},
+{"order_id":"3004","total":"83.62","status":"processing","created_at":"2024-12-30T20:48:19Z","items":[{"sku":"MH13-XS-Blue","name":"Marco Lightweight Active Hoodie - XS, Blue","price":"74"}]},
+{"order_id":"2998","total":"77.97","status":"processing","created_at":"2024-12-30T15:32:04Z","items":[{"sku":"MH09-XS-Blue","name":"Abominable Hoodie - XS, Blue","price":"69"}]},
+{"order_id":"2994","total":"77.97","status":"processing","created_at":"2024-12-30T15:00:07Z","items":[{"sku":"MH09-S-Blue","name":"Abominable Hoodie - S, Blue","price":"69"}]},
+{"order_id":"2992","total":"47.46","status":"processing","created_at":"2024-12-30T02:47:12Z","items":[{"sku":"WH05-XS-Orange","name":"Selene Yoga Hoodie - XS, Orange","price":"42"}]}
+],"site_config":{"profile":"ecommerce_retail_store_manager"}}"""
 
 @ttl_cache(ttl=900)
 def product_1k() -> List[Product]:
@@ -15,13 +29,14 @@ def product_1k() -> List[Product]:
 
 
 def test_parse_profile_str():
-    profile_str = '{"id": "123", "created_at": "2025-05-01T12:00:00Z", "cart": [], "orders": [], "site_config": {"profile": "ecommerce_retail_store_manager"} }'
+    #profile_str = '{"id": "123", "created_at": "2025-05-01T12:00:00Z", "cart": [], "orders": [], "site_config": {"profile": "ecommerce_retail_store_manager"} }'
+    profile_str = TEST_PROFILE
     profile = UserProfile.tryparse_profile(profile_str)
     assert isinstance(profile, UserProfile)
     assert profile.id == "123"
-    assert profile.created_at == "2025-05-01T12:00:00Z"
-    assert profile.cart == []
-    assert profile.orders == []
+    assert profile.created_at == "2025-05-31T18:45:13Z"
+    assert len(profile.cart) == 2
+    assert len(profile.orders) == 10
     assert profile.site_config == {"profile": "ecommerce_retail_store_manager"}
 
 
@@ -83,4 +98,5 @@ def test_persona_parse_default():
     assert thing["priorities"] is not None
 
     
+
 

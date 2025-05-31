@@ -218,7 +218,7 @@ class Miner(BaseMinerNeuron):
             axon=synapse.axon,
             dendrite=synapse.dendrite,            
             created_at=created_at,
-            user=synapse.user,
+            user="",
             num_results=num_recs,
             query=synapse.query,
             context="[]",

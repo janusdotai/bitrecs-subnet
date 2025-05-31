@@ -48,22 +48,23 @@ class PromptFactory:
                  debug: bool = False,
                  profile: Optional[UserProfile] = None) -> None:
         
-        if self.num_recs < 1 or self.num_recs > 20:
+        if num_recs < 1 or num_recs > 20:
             raise ValueError("num_recs must be between 1 and 20")        
 
         self.sku = sku
         self.context = context
-        self.num_recs = num_recs     
+        self.num_recs = num_recs
         self.load_catalog = load_catalog
         self.debug = debug
         self.catalog = []
         self.cart = []
         self.orders = []
         self.season =  PromptFactory.SEASON
-        if not profile:       
+        if not profile:
             self.persona = "ecommerce_retail_store_manager"
-        else:            
+        else:
             self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")
+            self.profile = profile
 
 
     def generate_prompt(self) -> str:

@@ -35,7 +35,7 @@ MODEL_BATTERY = [ "mistral-nemo", "phi4", "gemma3:27b", "qwen2.5:32b"]
 #                  "google/gemini-2.0-flash-001", "anthropic/claude-3.7-sonnet",
 #                  "openai/gpt-4o-mini-search-preview", "openai/gpt-4o-mini", "qwen/qwen-turbo"]
 
-CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-2.0-flash-001", "openrouter/quasar-alpha"]
+CLOUD_BATTERY = ["amazon/nova-lite-v1", "google/gemini-2.0-flash-001", "deepseek/deepseek-chat-v3-0324:free"]
 
 
 _FIRST_GET_REC = False

@@ -105,7 +105,7 @@ class Miner(BaseMinerNeuron):
     Main miner class which generates product recommendations based on incoming requests.
     You are encouraged to modify the do_work function to generate high quality recommendations using whatever method you prefer.
 
-    Default: By default this miner uses OPEN_ROUTER and google/gemini-flash-1.5-8b to generate recommendations.
+    Default: By default this miner uses OPEN_ROUTER and google/gemini-2.0-flash-lite-001 to generate recommendations.
     
     You can override this by setting the --llm.provider argument in the config.
     For example, --llm.provider OLLAMA_LOCAL will use the local ollama instance to generate recommendations.
@@ -354,16 +354,13 @@ class Miner(BaseMinerNeuron):
         """
         match self.llm_provider:
             case LLM.OLLAMA_LOCAL:
-                model = "mistral-nemo"
-                #model = "llama3.1"
+                model = "mistral-nemo"                
             case LLM.OPEN_ROUTER:
-                model = "google/gemini-flash-1.5-8b"
-                #model = "meta-llama/llama-3.1-70b-instruct:free"
+                model = "google/gemini-2.0-flash-lite-001"
             case LLM.CHAT_GPT:
                 model = "gpt-4o-mini"
             case LLM.VLLM:
-                model = "NousResearch/Meta-Llama-3-8B-Instruct"
-                #model = "nvidia/Llama-3.1-Nemotron-70B-Instruct-HF"
+                model = "NousResearch/Meta-Llama-3-8B-Instruct"                
             case LLM.GEMINI:                                
                 model = "gemini-2.0-flash-lite-001"
             case LLM.GROK:

@@ -367,6 +367,7 @@ class BaseValidatorNeuron(BaseNeuron):
                     
                         elected : BitrecsRequest = responses[selected_rec]
                         elected.context = "" #save bandwidth
+                        elected.user = ""
 
                         bt.logging.info("SCORING DONE")
                         bt.logging.info(f"\033[1;32mWINNING MINER: {elected.miner_uid} \033[0m")

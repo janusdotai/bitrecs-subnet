@@ -5,6 +5,7 @@ import bittensor as bt
 import hmac
 import hashlib
 import threading
+import asyncio
 from typing import Callable
 from functools import partial
 from fastapi import FastAPI, HTTPException, Request, APIRouter, Header
@@ -80,32 +81,16 @@ class ApiServer:
         self._server_thread = None
 
         self.router = APIRouter()
-        self.router.add_api_route(
-            "/ping", 
-            self.ping,
-            methods=["GET"]            
-        )
-        self.router.add_api_route(
-            "/version", 
-            self.version,
-            methods=["GET"]            
-        )
-
+        self.router.add_api_route("/ping", self.ping, methods=["GET"])
+        self.router.add_api_route("/version", self.version, methods=["GET"])
         if self.network == "localnet":
-            self.router.add_api_route(
-                "/rec",
-                self.generate_product_rec_localnet,
-                methods=["POST"]
-            ) 
+            self.router.add_api_route("/rec", self.generate_product_rec_localnet, methods=["POST"]) 
         elif self.network == "testnet":
-             self.router.add_api_route(
-                "/rec",
-                self.generate_product_rec_testnet,
-                methods=["POST"]
-            )
+            self.router.add_api_route("/rec", self.generate_product_rec_testnet, methods=["POST"])
+        elif self.network == "mainnet":
+            self.router.add_api_route("/rec", self.generate_product_rec_mainnet, methods=["POST"])
         else:
-            raise not NotImplementedError("Mainnet API not implemented")
-
+            raise ValueError(f"Unsupported network: {self.network}")
         self.app.include_router(self.router)
      
         try:
@@ -116,7 +101,11 @@ class ApiServer:
             bt.logging.warning(f"\033[1;33mWARNING - your validator is in limp mode, please restart\033[0m")
             raise Exception("Could not get proxy public key")
         
-        self.api_counter = APICounter(os.path.join(self.app.root_path, "api_counter.json"))
+        #self.api_counter = APICounter(os.path.join(self.app.root_path, "api_counter.json"))
+        self.api_counter = APICounter(
+            os.path.join(self.app.root_path, "api_counter.json"),
+            auto_save_interval=60
+        )
         bt.logging.info(f"\033[1;32m API Counter set {self.api_counter.save_path} \033[0m")
         
         bt.logging.info(f"\033[1;32m API Server initialized on {self.network} \033[0m")
@@ -408,12 +397,21 @@ class ApiServer:
         self._server_thread.start()
         bt.logging.info(f"API server started at {self.config.host}:{self.config.port}")
 
+
     def stop(self):
         """Stop the API server and cleanup"""
         if self._server_thread is None:
             bt.logging.warning("API server is not running")
             return
+        
+        #Counter stop
+        try:           
+            asyncio.run(self.api_counter.shutdown())
+            bt.logging.info("API counter shutdown complete")
+        except Exception as e:
+            bt.logging.error(f"Error during API counter shutdown: {e}")
 
+        #Server Stop
         self.server.should_exit = True
         self._server_thread.join(timeout=5)
         if self._server_thread.is_alive():
@@ -421,20 +419,23 @@ class ApiServer:
         self._server_thread = None
         bt.logging.info("API server stopped")
 
+
     def __enter__(self):
         """Context manager support"""
         self.start()
         return self
+    
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """Context manager support"""
         self.stop()
+        
 
     async def log_counter(self, success: bool) -> None:
-        try: 
-            self.api_counter.update(is_success=success)
-            self.api_counter.save()
+        try:
+            self.api_counter.update(success)
+            await self.api_counter.save_if_needed()
         except Exception as e:
-            bt.logging.error(f"ERROR API could not update counter log:  {e}")
+            bt.logging.error(f"ERROR API could not update counter log: {e}")
 
 

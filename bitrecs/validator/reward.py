@@ -64,7 +64,7 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
     if num_recs < 1 or num_recs > CONST.MAX_RECS_PER_REQUEST:
         return False
     if len(results) != num_recs:
-        bt.logging.error("Error validate_result_schema mismatch")
+        bt.logging.error("Error validate_result_schema num_recs mismatch")
         return False
     
     schema = {
@@ -167,9 +167,11 @@ def reward(
     try:
         score = 0.0
         if not response.is_success:
+            bt.logging.error(f"Miner {response.miner_uid} is_success is False")
             return 0.0
         
         if len(response.results) != num_recs:
+            bt.logging.error(f"Miner {response.miner_uid} num_recs mismatch, expected {num_recs} but got {len(response.results)}")
             return 0.0
 
         if not validate_result_schema(num_recs, response.results):
@@ -202,10 +204,7 @@ def reward(
             bt.logging.warning(f"Miner {response.miner_uid} invalid number of valid_items: {response.miner_hotkey}")
             return 0.0
 
-        score = BASE_REWARD 
-        #bt.logging.trace(f"In reward, score: {score}, num_recs: {num_recs}, miner: {response.miner_hotkey}")
-
-        #Check duration        
+        score = BASE_REWARD
         headers = response.to_headers()
         if "bt_header_dendrite_process_time" in headers:
             dendrite_time = float(headers["bt_header_dendrite_process_time"])

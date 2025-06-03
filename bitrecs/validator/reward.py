@@ -165,17 +165,21 @@ def reward(
     bt.logging.trace("*************** VALIDATOR REWARD *****************")
     
     try:
-        score = 0.0
+        score = 0.0    
+        if response.is_timeout:
+            bt.logging.error(f"Miner {response.miner_uid} is_timeout is True")
+            return 0.0
+        if response.is_failure:
+            bt.logging.error(f"Miner {response.miner_uid} is_failure is True")
+            return 0.0
         if not response.is_success:
             bt.logging.error(f"Miner {response.miner_uid} is_success is False")
-            return 0.0
-        
+            return 0.0        
         if len(response.results) != num_recs:
             bt.logging.error(f"Miner {response.miner_uid} num_recs mismatch, expected {num_recs} but got {len(response.results)}")
             return 0.0
-
         if not validate_result_schema(num_recs, response.results):
-            bt.logging.error(f"Miner {response.miner_uid} has invalid schema results: {response.miner_hotkey}")
+            bt.logging.error(f"Miner {response.miner_uid} failed schema validation: {response.miner_hotkey}")
             return 0.0
 
         valid_items = set()

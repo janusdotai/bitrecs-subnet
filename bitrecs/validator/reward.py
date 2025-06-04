@@ -165,16 +165,16 @@ def reward(
     bt.logging.trace("*************** VALIDATOR REWARD *****************")
     
     try:
-        score = 0.0    
+        score = 0.0
         if response.is_timeout:
-            bt.logging.error(f"Miner {response.miner_uid} is_timeout is True")
+            bt.logging.error(f"Miner {response.miner_uid} is_timeout is True, status: {response.dendrite.status_code}")
             return 0.0
-        if response.is_failure:
-            bt.logging.error(f"Miner {response.miner_uid} is_failure is True")
+        if response.is_failure:            
+            bt.logging.error(f"Miner {response.miner_uid} is_failure is True, status: {response.dendrite.status_code}")
             return 0.0
         if not response.is_success:
-            bt.logging.error(f"Miner {response.miner_uid} is_success is False")
-            return 0.0        
+            bt.logging.error(f"Miner {response.miner_uid} is_success is False, status: {response.dendrite.status_code}")
+            return 0.0
         if len(response.results) != num_recs:
             bt.logging.error(f"Miner {response.miner_uid} num_recs mismatch, expected {num_recs} but got {len(response.results)}")
             return 0.0

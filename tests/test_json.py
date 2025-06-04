@@ -1,11 +1,14 @@
+import os
+os.environ["NEST_ASYNCIO"] = "0"
 import json
 import json_repair
 import jsonschema
+from dataclasses import asdict
 from random import SystemRandom
-safe_random = SystemRandom()
+from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.validator.reward import validate_result_schema
-
+safe_random = SystemRandom()
 
 
 
@@ -469,3 +472,63 @@ def test_schema_validation_missing_reasoning():
     "{'sku': '8772908384480', 'name': 'Universal Wireless Charging Stand for Iphone Apple Watch Airpods', 'price': '40.33'}"]
     is_valid = validate_result_schema(4, broken_json)
     assert is_valid == False
+
+
+def test_compact_product_json():   
+    with open("./tests/data/amazon/fashion/amazon_fashion_sample_1000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)    
+    
+    assert len(products) == 907
+    context = json.dumps([asdict(products) for products in products])    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 40093 == tc
+
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 34652 == tc
+
+    p = json.loads(context)
+    assert len(p) == 907
+
+
+def test_compact_product_json():   
+    with open("./tests/data/amazon/fashion/amazon_fashion_sample_1000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)    
+    
+    assert len(products) == 907
+    context = json.dumps([asdict(products) for products in products])    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 40093 == tc
+
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 34652 == tc
+
+    p = json.loads(context)
+    assert len(p) == 907
+
+
+def test_compact_product_json_20k():   
+    with open("./tests/data/amazon/fashion/amazon_fashion_sample_20000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)    
+    
+    assert len(products) == 18088
+    context = json.dumps([asdict(products) for products in products])    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 799773 == tc
+
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 691246 == tc
+
+    p = json.loads(context)
+    assert len(p) == 18088

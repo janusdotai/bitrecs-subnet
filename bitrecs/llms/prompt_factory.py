@@ -90,6 +90,7 @@ class PromptFactory:
     - Recommend complementary products (X → Y)
     - Avoid variant duplicates (same product in different colors/sizes)
     - Consider seasonal relevance
+  
 
     Current season: <season>{season}</season>
     Today's date: {today}
@@ -111,14 +112,16 @@ class PromptFactory:
 
     # OUTPUT REQUIREMENTS
     - Return ONLY a JSON array.
-    - Each object must have: sku, name, price and reason.
-    - Important information is in the 'name' field. Use this information to help make your recommendations.
+    - Each item must have: sku, name, price and reason.
+    - Important information is in the name field. Use this information to help make your recommendations.
+    - Consider the gender of the Query SKU, if they are querying a mens product, recommend mens products, if they are querying a womens product, recommend womens products.
+    - If the Query SKU is gender neutral, recommend more gender neutral products.
     - Must return exactly {self.num_recs} items.
     - Items must exist in context.
-    - No duplicates.
-    - Query SKU must not be included.
-    - Order by relevance/profitability.
-    - Each object must have a reason explaining why the product is a good recommendation for the <query> SKU.
+    - No duplicates. The result MUST be a SET of products from the context.
+    - Query SKU must not be included in the recommendations.
+    - Order by overall relevance/profitability.
+    - Each item must have a reason explaining why the product is a good recommendation for the related query SKU.
     - The reason should be a single succinct sentence consisting of plain words without punctuation, or line breaks.
     - No explanations or text outside the JSON array.
 

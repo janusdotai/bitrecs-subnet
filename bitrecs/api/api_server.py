@@ -1,3 +1,4 @@
+from dataclasses import asdict
 import os
 import json
 import time
@@ -291,6 +292,9 @@ class ApiServer:
                 bt.logging.error(f"API Too many duplicates in catalog: {dupes}")                
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - dupe threshold reached", "status_code": 400})
+
+            #Reduce json size for context
+            request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
 
             st = time.perf_counter()
             response = await self.forward_fn(request)

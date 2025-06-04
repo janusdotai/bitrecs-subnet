@@ -47,11 +47,10 @@ OLLAMA_MODEL = "mistral-nemo" #8/8 8 passed, 5 skipped, 4 warnings in 61.01s (0:
 #OLLAMA_MODEL = "phi4" # 1 failed, 7 passed, 5 skipped, 3 warnings in 124.66s (0:02:04) coldstart |  2 failed, 6 passed, 5 skipped, 3 warnings in 202.52s (0:03:22) 
 #OLLAMA_MODEL = "phi4:14b-fp16" # 4 failed, 4 passed, 5 skipped, 3 warnings in 129.96s (0:02:09)
 #OLLAMA_MODEL = "phi4:14b-q8_0" #1 failed, 7 passed, 5 skipped, 3 warnings in 90.35s (0:01:30) 
-
 #OLLAMA_MODEL = "gemma3" #3 failed, 5 passed, 5 skipped, 2 warnings in 34.93s =============
 
-
 MASTER_SKU = "B08XYRDKDV" #HP Envy 6455e Wireless Color All-in-One Printer with 6 Months Free Ink (223R1A) (Renewed Premium)
+#MASTER_SKU = "B004KKX6IO" #Seville Classics Modern Ergonomic Pneumatic Height Adjustable 360-Degree Swivel Stool Chair, for Drafting, Office, Home, Garage, Work Desk
 
 print(f"MASTER_SKU: {MASTER_SKU}\n")
 print(f"OLLAMA_MODEL: {OLLAMA_MODEL}")
@@ -232,13 +231,14 @@ def test_call_local_llm_with_20k():
     print(f"after de-dupe: {len(products)} records")
     
     user_prompt = MASTER_SKU
-    num_recs = 6
+    num_recs = 5
     debug_prompts = False
 
     match = [products for products in products if products.sku == user_prompt][0]
     print(match)    
 
-    context = json.dumps([asdict(products) for products in products])
+    #context = json.dumps([asdict(products) for products in products])
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
                             num_recs=num_recs, 
@@ -246,6 +246,10 @@ def test_call_local_llm_with_20k():
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
+    tc = PromptFactory.get_token_count(prompt)
+    print(f"prompt length: {len(prompt)}")
+    print(f"prompt token count: {tc}")
+
     #print(prompt)
     model = OLLAMA_MODEL
 

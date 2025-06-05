@@ -417,12 +417,12 @@ class BaseValidatorNeuron(BaseNeuron):
                     if synapse_with_event and synapse_with_event.event:
                         bt.logging.error("API MISSED REQUEST - Marking synapse as processed due to exception")
                         synapse_with_event.event.set()
+                    bt.logging.error(traceback.format_exc())
                     bt.logging.error("\033[31m Sleeping for 60 seconds ... \033[0m")
                     await asyncio.sleep(60)
                 finally:
                     if api_enabled and api_exclusive:
-                        bt.logging.info(f"API MODE - forward finished, ready for next request")
-                        #await asyncio.sleep(0.1)
+                        bt.logging.info(f"API MODE - forward finished, ready for next request")                        
                     else:
                         bt.logging.info(f"LIMP MODE forward finished, sleep for {45} seconds")
                         await asyncio.sleep(45)

@@ -177,8 +177,8 @@ def reward(
         valid_items = set()
         query_lower = response.query.lower().strip()
         for result in response.results:
-            try:                
-                product = json_repair.loads(result)
+            try:
+                product: Product = json_repair.loads(result)
                 sku = product["sku"]
                 if sku.lower() == query_lower:
                     bt.logging.warning(f"Miner {response.miner_uid} has query in results: {response.miner_hotkey}")
@@ -258,7 +258,7 @@ def get_rewards(
     if len(store_catalog) < CONST.MIN_CATALOG_SIZE or len(store_catalog) > CONST.MAX_CATALOG_SIZE:
         bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
         return np.zeros(len(responses), dtype=float)
-    catalog_validator = CatalogValidator(store_catalog)   
+    catalog_validator = CatalogValidator(store_catalog)
     
     if not actions or len(actions) == 0:
         bt.logging.warning(f"\033[1;31m WARNING - no actions found in get_rewards \033[0m")    

@@ -7,7 +7,7 @@ from dataclasses import asdict
 from random import SystemRandom
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
-from bitrecs.validator.reward import validate_result_schema
+from bitrecs.validator.reward import CatalogValidator, validate_result_schema
 safe_random = SystemRandom()
 
 
@@ -532,3 +532,21 @@ def test_compact_product_json_20k():
 
     p = json.loads(context)
     assert len(p) == 18088
+
+
+def test_catalog_validator():
+    #"PILOT Dr. Grip Refillable & Retractable Gel Ink Rolling Ball Pen, Fine Point, Blue Barrel, Black Ink, Single Pen (36260)", 
+    # "images": [], "asin": "B00006IEBU", "parent_asin": "B08CH1V4DG", "
+    with open("./tests/data/amazon/office/amazon_office_sample_1000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)
+    catalog_validator = CatalogValidator(products)
+
+    sku = "B00006IEBU"
+    is_valid = catalog_validator.validate_sku(sku)
+    assert is_valid == True
+
+    sku = "B00006IEBUe"
+    is_valid = catalog_validator.validate_sku(sku)
+    assert is_valid == False
+    

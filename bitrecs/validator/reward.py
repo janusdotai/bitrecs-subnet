@@ -177,8 +177,8 @@ def reward(
         valid_items = set()
         query_lower = response.query.lower().strip()
         for result in response.results:
-            try:
-                product = json_repair.loads(result)
+            try:                
+                product: Product = json_repair.loads(result)
                 sku = product["sku"]
                 if sku.lower() == query_lower:
                     bt.logging.warning(f"Miner {response.miner_uid} has query in results: {response.miner_hotkey}")

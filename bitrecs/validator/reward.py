@@ -254,7 +254,8 @@ def get_rewards(
         bt.logging.error(f"Invalid number of recommendations: {num_recs}")
         return np.zeros(len(responses), dtype=float)    
     
-    store_catalog: list[Product] = ProductFactory.try_parse_context(ground_truth.context)
+    #store_catalog: list[Product] = ProductFactory.try_parse_context(ground_truth.context)
+    store_catalog : list[Product] = ProductFactory.try_parse_context_strict(ground_truth.context)
     if len(store_catalog) < CONST.MIN_CATALOG_SIZE or len(store_catalog) > CONST.MAX_CATALOG_SIZE:
         bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
         return np.zeros(len(responses), dtype=float)

@@ -17,7 +17,6 @@
 # DEALINGS IN THE SOFTWARE.
 
 import math
-import time
 import json
 import traceback
 import numpy as np
@@ -42,7 +41,7 @@ ACTION_WEIGHTS = {
 }
 
 class CatalogValidator:
-    def __init__(self, store_catalog: List[Product]):        
+    def __init__(self, store_catalog: List[Product]):
         self.sku_set = {product.sku.lower().strip() for product in store_catalog}
     
     def validate_sku(self, sku: str) -> bool:
@@ -178,7 +177,7 @@ def reward(
         query_lower = response.query.lower().strip()
         for result in response.results:
             try:
-                product: Product = json_repair.loads(result)
+                product = json_repair.loads(result)
                 sku = product["sku"]
                 if sku.lower() == query_lower:
                     bt.logging.warning(f"Miner {response.miner_uid} has query in results: {response.miner_hotkey}")
@@ -252,9 +251,8 @@ def get_rewards(
 
     if num_recs < 1 or num_recs > CONST.MAX_RECS_PER_REQUEST:
         bt.logging.error(f"Invalid number of recommendations: {num_recs}")
-        return np.zeros(len(responses), dtype=float)    
+        return np.zeros(len(responses), dtype=float)
     
-    #store_catalog: list[Product] = ProductFactory.try_parse_context(ground_truth.context)
     store_catalog : list[Product] = ProductFactory.try_parse_context_strict(ground_truth.context)
     if len(store_catalog) < CONST.MIN_CATALOG_SIZE or len(store_catalog) > CONST.MAX_CATALOG_SIZE:
         bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
@@ -262,7 +260,7 @@ def get_rewards(
     catalog_validator = CatalogValidator(store_catalog)
     
     if not actions or len(actions) == 0:
-        bt.logging.warning(f"\033[1;31m WARNING - no actions found in get_rewards \033[0m")    
+        bt.logging.warning(f"\033[1;31m WARNING - no actions found in get_rewards \033[0m")
         
     return np.array(
         [reward(num_recs, catalog_validator, response, actions) for response in responses], dtype=float

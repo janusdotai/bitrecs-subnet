@@ -391,7 +391,7 @@ class BaseValidatorNeuron(BaseNeuron):
                         self.update_scores(rewards, chosen_uids)
                         
                         if self.config.logging.trace or 1==1:
-                            log_miner_responses(self.step, responses)
+                            #log_miner_responses(self.step, responses)
                             log_miner_responses_to_sql(self.step, responses)
                     else:
                         if not api_exclusive: #Regular validator loop  

@@ -41,21 +41,15 @@ ACTION_WEIGHTS = {
     ActionType.PURCHASE.value: 0.85,
 }
 
+class CatalogValidator:
+    def __init__(self, store_catalog: List[Product]):        
+        self.sku_set = {product.sku.lower().strip() for product in store_catalog}
+    
+    def validate_sku(self, sku: str) -> bool:
+        if not sku:
+            return False
+        return sku.lower().strip() in self.sku_set
 
-def does_sku_exist(sku: str, store_catalog: List[Product]) -> bool:
-    """
-    Check if sku exists in the context
-    """
-    if not sku or not store_catalog:
-        return False
-    if len(store_catalog) == 0:
-        return False
-    match = sku.lower().strip()
-    for product in store_catalog:
-        if product["sku"].lower().strip() == match:
-            return True
-    return False
-   
 
 def validate_result_schema(num_recs: int, results: list) -> bool:
     """
@@ -83,9 +77,7 @@ def validate_result_schema(num_recs: int, results: list) -> bool:
         try:            
             #thing = json.loads(item)
             thing = json_repair.loads(item)
-            validated = jsonschema.validate(thing, schema)
-            if validated is not None:
-                return False            
+            jsonschema.validate(thing, schema)           
             count += 1
         except json.decoder.JSONDecodeError as e:            
             bt.logging.trace(f"JSON JSONDecodeError ERROR: {e}")
@@ -145,7 +137,7 @@ def calculate_miner_boost(hotkey: str, actions: List[UserAction]) -> float:
 
 def reward(
     num_recs: int, 
-    store_catalog: list[Product], 
+    catalog_validator: CatalogValidator, 
     response: BitrecsRequest,
     actions: List[UserAction]
 ) -> float:
@@ -180,22 +172,21 @@ def reward(
             return 0.0
         if not validate_result_schema(num_recs, response.results):
             bt.logging.error(f"Miner {response.miner_uid} failed schema validation: {response.miner_hotkey}")
-            return 0.0
-
+            return 0.0        
+        
         valid_items = set()
+        query_lower = response.query.lower().strip()
         for result in response.results:
             try:
-                product: Product = json_repair.loads(result)
+                product = json_repair.loads(result)
                 sku = product["sku"]
-                if sku.lower() == response.query.lower():
+                if sku.lower() == query_lower:
                     bt.logging.warning(f"Miner {response.miner_uid} has query in results: {response.miner_hotkey}")
                     return 0.0
-                                    
                 if sku in valid_items:
                     bt.logging.warning(f"Miner {response.miner_uid} has duplicate results: {response.miner_hotkey}")
                     return 0.0
-                
-                if not does_sku_exist(sku, store_catalog):
+                if not catalog_validator.validate_sku(sku):
                     bt.logging.warning(f"Miner {response.miner_uid} has invalid results: {response.miner_hotkey}")
                     return 0.00
                 
@@ -267,12 +258,13 @@ def get_rewards(
     if len(store_catalog) < CONST.MIN_CATALOG_SIZE or len(store_catalog) > CONST.MAX_CATALOG_SIZE:
         bt.logging.error(f"Invalid catalog size: {len(store_catalog)}")
         return np.zeros(len(responses), dtype=float)
+    catalog_validator = CatalogValidator(store_catalog)   
     
     if not actions or len(actions) == 0:
-        bt.logging.warning(f"\033[1;31m WARNING - no actions found in get_rewards \033[0m")
+        bt.logging.warning(f"\033[1;31m WARNING - no actions found in get_rewards \033[0m")    
         
     return np.array(
-        [reward(num_recs, store_catalog, response, actions) for response in responses], dtype=float
+        [reward(num_recs, catalog_validator, response, actions) for response in responses], dtype=float
     )
 
 

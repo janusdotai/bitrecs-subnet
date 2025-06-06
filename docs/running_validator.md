@@ -2,106 +2,36 @@
 
 This guide ensures the Bitrecs validator works on **Ubuntu 24.10 LTS**. Follow the steps below.
 
-Feel free to use scripts/install_vali.sh which is the same as below and can be curl'd as
-
+## 1. Install script 
 ```bash
 curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/scripts/install_vali.sh | bash
 ```
 
-## 1. Networking Setup
+## 2. Keys on machine and register
+Put your keys on the machine, register and stake. 
+
+## 3. Environment Configuration
+
+Before running the validator, edit the .env environment file and fill it in to match your config specs.
+
+## 4. Start Validator
+Monitor output with `pm2 logs 0`.
 
 ```bash
-sudo apt install ufw
-sudo apt-get update && sudo apt-get upgrade -y
-ufw allow 22
-ufw allow proto tcp to 0.0.0.0/0 port 8091
-ufw allow proto tcp to 0.0.0.0/0 port 7779
-ufw enable
-ufw reload
+pm2 start ./neurons/validator.py --name v -- \
+        --netuid 296 \
+        --wallet.name default --wallet.hotkey default \
+        --neuron.vpermit_tao_limit 1_000_000 \
+        --subtensor.network wss://test.finney.opentensor.ai:433 \
+        --logging.trace \
+        --r2.sync_on 
+
 ```
 
-## 2. Server Setup
+## 5. Optionally - Auto Update Validator 
+
+Keep your validator up to date automatically.
 
 ```bash
-sudo mount -o remount,size=8G /tmp
-sudo apt-get update && sudo apt-get upgrade -y
-apt install python3-pip
-sudo apt install python3.12-venv
+pm2 start ./scripts/auto_updater.sh --name updater --cron "*/5 * * * *"
 ```
-
-## 3. Create Working Directory
-
-```bash
-mkdir bt
-cd bt
-```
-
-## 4. Python Environment Setup
-
-```bash
-python3.12 -m venv bt_venv
-source bt_venv/bin/activate
-pip3 install bittensor[torch]
-echo "source /root/bt/bt_venv/bin/activate" >> ~/.bashrc
-reboot now
-```
-
-## 5. Validator Installation
-
-```bash
-sudo apt-get update && sudo apt-get upgrade -y
-cd /bt
-git clone https://github.com/janusdotai/bitrecs-subnet.git
-cd bitrecs-subnet
-pip3 install -r requirements.txt
-python3 -m pip install -e .
-sudo apt install -y nodejs npm
-sudo npm install -g pm2
-```
-
-## 6. Wallet Setup + Subnet Registration
-
-If you do not have a **Bittensor coldkey**:
-
-1. Install btcli: [Installation Guide](https://docs.bittensor.com/getting-started/install-btcli)
-2. Create coldkey and hotkey: [BTCLI Wallet Guide](https://docs.bittensor.com/btcli#btcli-wallet)
-
-If you already have a wallet, run the following on the validator:
-
-```bash
-btcli w regen_coldkeypub
-btcli w regen_hotkey
-```
-
-### Register Your Validator on the Subnet
-
-```bash
-btcli subnet register --wallet.name default --wallet.hotkey default --network wss://test.finney.opentensor.ai:443 
-```
-
-### Add at least 10 TAU Stake to get picked up by the Network
-
-```bash
-btcli stake add --wallet.name default --wallet.hotkey default --network wss://test.finney.opentensor.ai:443 
-```
-
-## 7. Environment Configuration
-
-Before running the validator, edit the environment file and fill in the necessary details.
-
-## 8. Start Validator
-
-```bash
-pm2 start ./neurons/validator.py --name v -- --netuid 296 --wallet.name default --wallet.hotkey default --neuron.vpermit_tao_limit 1_000_000 --subtensor.network wss://test.finney.opentensor.ai:433 --logging.trace
-```
-
-## 9. Final Steps
-
-- Verify the validator is running.
-- Use `pm2 list` to check running processes.
-
----
-
-**Congratulations! Your Bitrecs validator is now set up and running.** 🚀
-
-``

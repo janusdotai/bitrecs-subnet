@@ -102,10 +102,10 @@ run_command "cd \$HOME/bt && git clone https://github.com/janusdotai/bitrecs-sub
 run_command "cd \$HOME/bt/bitrecs-subnet && source \$HOME/bt/bt_venv/bin/activate && pip install -r requirements.txt && pip install -e ." "Installing Bitrecs with pip -e ..." 100
 
 # Done
-update_screen 100 "Installation Complete! 🚀"
+update_screen 100 "Installation Complete!"
 tput rmcup
 echo -e "\n${GREEN}╔════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║       Installation Complete! 🚀         ║${NC}"
+echo -e "${GREEN}║        Installation Complete           ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════╝${NC}\n"
 echo -e "✔️  Repo at: ${YELLOW}~/bt/bitrecs-subnet${NC}"
 echo -e "💡 ${YELLOW}To use your environment, please open a new terminal (re-ssh) ${NC}"

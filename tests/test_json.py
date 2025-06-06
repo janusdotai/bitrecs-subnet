@@ -1,11 +1,14 @@
+import os
+os.environ["NEST_ASYNCIO"] = "0"
 import json
 import json_repair
 import jsonschema
+from dataclasses import asdict
 from random import SystemRandom
-safe_random = SystemRandom()
+from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
-from bitrecs.validator.reward import validate_result_schema
-
+from bitrecs.validator.reward import CatalogValidator, validate_result_schema
+safe_random = SystemRandom()
 
 
 
@@ -400,12 +403,12 @@ def test_products_missing_sku_error():
 
 
 def test_schema_validation_broken_testnet_json_03_03_2025():
-    broken_json = ['{\'sku\': \'8772908155104\', \'name\': \'10" Table Top Selfie LED Lamp\', \'price\': \'46.74\'}', 
-    "{'sku': '8772909269216', 'name': 'Knock Knock Video Doorbell WiFi Enabled', 'price': '40.29'}", 
-    "{'sku': '8772908450016', 'name': 'Galaxy Starry Sky Projector Rotating', 'price': '90.34'}", 
-    "{'sku': '8761138839776', 'name': 'beFree Sound Color LED Dual Gaming Speakers', 'price': '84.42'}", 
-    "{'sku': '8772908384480', 'name': 'Universal Wireless Charging Stand for Iphone Apple Watch Airpods', 'price': '40.33'}", 
-    '{\'sku\': \'8761139331296\', \'name\': \'Impress 16" Oscillating Stand Fan (black) IM-725B\', \'price\': \'56.91\'}']
+    broken_json = ['{\'sku\': \'8772908155104\', \'name\': \'10" Table Top Selfie LED Lamp\', \'price\': \'46.74\', \'reason\': \'test\'}', 
+    "{'sku': '8772909269216', 'name': 'Knock Knock Video Doorbell WiFi Enabled', 'price': '40.29', 'reason': 'test'}", 
+    "{'sku': '8772908450016', 'name': 'Galaxy Starry Sky Projector Rotating', 'price': '90.34', 'reason': 'test'}", 
+    "{'sku': '8761138839776', 'name': 'beFree Sound Color LED Dual Gaming Speakers', 'price': '84.42', 'reason': 'test'}", 
+    "{'sku': '8772908384480', 'name': 'Universal Wireless Charging Stand for Iphone Apple Watch Airpods', 'price': '40.33', 'reason': 'test'}", 
+    '{\'sku\': \'8761139331296\', \'name\': \'Impress 16" Oscillating Stand Fan (black) IM-725B\', \'price\': \'56.91\', \'reason\': \'test\'}']
 
     is_valid = validate_result_schema(6, broken_json)
     assert is_valid == True
@@ -462,4 +465,88 @@ def test_strict_parser_rejects_malformed_json_quotes():
         assert "'" not in product.sku
 
 
+def test_schema_validation_missing_reasoning():
+    broken_json = ["{'sku': '8772909269216', 'name': 'Knock Knock Video Doorbell WiFi Enabled', 'price': '40.29', 'reason': 'test'}", 
+    "{'sku': '8772908450016', 'name': 'Galaxy Starry Sky Projector Rotating', 'price': '90.34', 'reason': 'test'}", 
+    "{'sku': '8761138839776', 'name': 'beFree Sound Color LED Dual Gaming Speakers', 'price': '84.42', 'reason': 'test'}", 
+    "{'sku': '8772908384480', 'name': 'Universal Wireless Charging Stand for Iphone Apple Watch Airpods', 'price': '40.33'}"]
+    is_valid = validate_result_schema(4, broken_json)
+    assert is_valid == False
+
+
+def test_compact_product_json():   
+    with open("./tests/data/amazon/fashion/amazon_fashion_sample_1000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)    
+    
+    assert len(products) == 907
+    context = json.dumps([asdict(products) for products in products])    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 40093 == tc
+
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 34652 == tc
+
+    p = json.loads(context)
+    assert len(p) == 907
+
+
+def test_compact_product_json():   
+    with open("./tests/data/amazon/fashion/amazon_fashion_sample_1000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)    
+    
+    assert len(products) == 907
+    context = json.dumps([asdict(products) for products in products])    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 40093 == tc
+
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 34652 == tc
+
+    p = json.loads(context)
+    assert len(p) == 907
+
+
+def test_compact_product_json_20k():   
+    with open("./tests/data/amazon/fashion/amazon_fashion_sample_20000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)    
+    
+    assert len(products) == 18088
+    context = json.dumps([asdict(products) for products in products])    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 799773 == tc
+
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
+    tc = PromptFactory.get_token_count(context)
+    print(f"token count: {tc}")
+    assert 691246 == tc
+
+    p = json.loads(context)
+    assert len(p) == 18088
+
+
+def test_catalog_validator():
+    #"PILOT Dr. Grip Refillable & Retractable Gel Ink Rolling Ball Pen, Fine Point, Blue Barrel, Black Ink, Single Pen (36260)", 
+    # "images": [], "asin": "B00006IEBU", "parent_asin": "B08CH1V4DG", "
+    with open("./tests/data/amazon/office/amazon_office_sample_1000.json", "r") as f:
+        data = f.read()    
+    products = ProductFactory.convert(data, CatalogProvider.AMAZON)
+    catalog_validator = CatalogValidator(products)
+
+    sku = "B00006IEBU"
+    is_valid = catalog_validator.validate_sku(sku)
+    assert is_valid == True
+
+    sku = "B00006IEBUe"
+    is_valid = catalog_validator.validate_sku(sku)
+    assert is_valid == False
     

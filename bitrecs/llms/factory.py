@@ -7,6 +7,7 @@ from bitrecs.llms.llama_local import OllamaLocal
 from bitrecs.llms.open_router import OpenRouter
 from bitrecs.llms.chat_gpt import ChatGPT
 from bitrecs.llms.vllm_router import vLLM
+from bitrecs.llms.chutes import Chutes
 
 
 class LLM(Enum):
@@ -17,6 +18,7 @@ class LLM(Enum):
     GEMINI = 5
     GROK = 6
     CLAUDE = 7
+    CHUTES = 8
 
 
 class LLMFactory:
@@ -35,7 +37,13 @@ class LLMFactory:
             case LLM.VLLM:
                 return VllmInterface(model, system_prompt, temp).query(user_prompt)
             case LLM.GEMINI:
-                return GeminiInterface(model, system_prompt, temp).query(user_prompt)
+                return GeminiInterface(model, system_prompt, temp).query(user_prompt)         
+            case LLM.CHUTES:
+                return ChutesInterface(model, system_prompt, temp).query(user_prompt)
+            case LLM.GROK:
+                raise NotImplementedError("Grok is not implemented yet")
+            case LLM.CLAUDE:
+                raise NotImplementedError("Claude is not implemented yet")
             case _:
                 raise ValueError("Unknown LLM server")
             
@@ -56,6 +64,8 @@ class LLMFactory:
                 return LLM.GROK
             case "CLAUDE":
                 return LLM.CLAUDE
+            case "CHUTES":
+                return LLM.CHUTES
             case _:
                 raise ValueError("Unknown LLM server")
         
@@ -133,3 +143,18 @@ class GeminiInterface:
         router = Gemini(self.GEMINI_API_KEY, model=self.model, 
                          system_prompt=self.system_prompt, temp=self.temp)
         return router.call_gemini(user_prompt)
+    
+
+class ChutesInterface:
+    def __init__(self, model, system_prompt, temp):
+        self.model = model
+        self.system_prompt = system_prompt
+        self.temp = temp
+        self.CHUTES_API_KEY = os.environ.get("CHUTES_API_KEY")
+        if not self.CHUTES_API_KEY:            
+            raise ValueError("CHUTES_API_KEY is not set")
+        
+    def query(self, user_prompt) -> str:
+        router = Chutes(self.CHUTES_API_KEY, model=self.model, 
+                         system_prompt=self.system_prompt, temp=self.temp)        
+        return router.call_chutes(user_prompt)

@@ -47,11 +47,10 @@ OLLAMA_MODEL = "mistral-nemo" #8/8 8 passed, 5 skipped, 4 warnings in 61.01s (0:
 #OLLAMA_MODEL = "phi4" # 1 failed, 7 passed, 5 skipped, 3 warnings in 124.66s (0:02:04) coldstart |  2 failed, 6 passed, 5 skipped, 3 warnings in 202.52s (0:03:22) 
 #OLLAMA_MODEL = "phi4:14b-fp16" # 4 failed, 4 passed, 5 skipped, 3 warnings in 129.96s (0:02:09)
 #OLLAMA_MODEL = "phi4:14b-q8_0" #1 failed, 7 passed, 5 skipped, 3 warnings in 90.35s (0:01:30) 
-
 #OLLAMA_MODEL = "gemma3" #3 failed, 5 passed, 5 skipped, 2 warnings in 34.93s =============
 
-
 MASTER_SKU = "B08XYRDKDV" #HP Envy 6455e Wireless Color All-in-One Printer with 6 Months Free Ink (223R1A) (Renewed Premium)
+#MASTER_SKU = "B004KKX6IO" #Seville Classics Modern Ergonomic Pneumatic Height Adjustable 360-Degree Swivel Stool Chair, for Drafting, Office, Home, Garage, Work Desk
 
 print(f"MASTER_SKU: {MASTER_SKU}\n")
 print(f"OLLAMA_MODEL: {OLLAMA_MODEL}")
@@ -232,13 +231,14 @@ def test_call_local_llm_with_20k():
     print(f"after de-dupe: {len(products)} records")
     
     user_prompt = MASTER_SKU
-    num_recs = 6
+    num_recs = 5
     debug_prompts = False
 
     match = [products for products in products if products.sku == user_prompt][0]
     print(match)    
 
-    context = json.dumps([asdict(products) for products in products])
+    #context = json.dumps([asdict(products) for products in products])
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
                             num_recs=num_recs, 
@@ -246,6 +246,10 @@ def test_call_local_llm_with_20k():
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
+    tc = PromptFactory.get_token_count(prompt)
+    print(f"prompt length: {len(prompt)}")
+    print(f"prompt token count: {tc}")
+
     #print(prompt)
     model = OLLAMA_MODEL
 
@@ -295,10 +299,10 @@ def test_call_local_llm_with_20k_random_logic():
     print(f"prompt length: {len(prompt)}")
        
     model = OLLAMA_MODEL
-
+    
     llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
                                  model=model,
-                                 system_prompt="You are a helpful assistant", 
+                                 system_prompt="You are a helpful assistant\n /no_think", 
                                  temp=0.0, user_prompt=prompt)
     #print(llm_response)    
     parsed_recs = PromptFactory.tryparse_llm(llm_response)   
@@ -324,8 +328,7 @@ def test_call_local_llm_with_shopify_1k_random_logic():
     print(f"after de-dupe: {len(products)} records")
    
     rp = safe_random.choice(products)
-    user_prompt = rp.sku    
-    #num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])
+    user_prompt = rp.sku        
     num_recs = safe_random.choice([5, 6, 7, 8, 9, 10])
 
     debug_prompts = False
@@ -346,7 +349,6 @@ def test_call_local_llm_with_shopify_1k_random_logic():
     print(f"prompt length: {len(prompt)}")
        
     model = OLLAMA_MODEL
-
     llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
                                  model=model,
                                  system_prompt="You are a helpful assistant", 
@@ -366,262 +368,3 @@ def test_call_local_llm_with_shopify_1k_random_logic():
         assert count == 1
 
     assert user_prompt not in skus
-
-
-
-
-
-@pytest.mark.skip(reason="skipped")
-def test_call_open_router_with_5k_random_logic():
-    raw_products = product_5k()
-    products = ProductFactory.dedupe(raw_products)    
-    print(f"after de-dupe: {len(products)} records")   
-  
-    rp = safe_random.choice(products)
-    user_prompt = rp.sku    
-    num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])
-
-    debug_prompts = False
-
-    match = [products for products in products if products.sku == user_prompt][0]
-    print(match)    
-    print(f"num_recs: {num_recs}")  
-
-    context = json.dumps([asdict(products) for products in products])
-    factory = PromptFactory(sku=user_prompt, 
-                            context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
-                            debug=debug_prompts)
-    
-    prompt = factory.generate_prompt()
-    #print(prompt)
-    print(f"prompt length: {len(prompt)}")
-
-    model = "google/gemini-flash-1.5-8b"
-
-    llm_response = LLMFactory.query_llm(server=LLM.OPEN_ROUTER,
-                                 model=model,
-                                 system_prompt="You are a helpful assistant", 
-                                 temp=0.0, user_prompt=prompt)
-    #print(llm_response)    
-    parsed_recs = PromptFactory.tryparse_llm(llm_response)
-    print(f"parsed {len(parsed_recs)} records")
-    print(parsed_recs)
-  
-    assert len(parsed_recs) == num_recs
-  
-
-    #check uniques
-    skus = [item['sku'] for item in parsed_recs]
-    counter = Counter(skus)
-    for sku, count in counter.items():
-        print(f"{sku}: {count}")
-        assert count == 1
-
-    assert user_prompt not in skus
-
-
-@pytest.mark.skip(reason="skipped")
-def test_call_open_router_with_20k_random_logic():
-    raw_products = product_20k()
-    products = ProductFactory.dedupe(raw_products)    
-    print(f"after de-dupe: {len(products)} records")   
- 
-    rp = safe_random.choice(products)
-    user_prompt = rp.sku    
-    num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])    
-
-    debug_prompts = False
-
-    match = [products for products in products if products.sku == user_prompt][0]
-    print(match)    
-    print(f"num_recs: {num_recs}")  
-
-    context = json.dumps([asdict(products) for products in products])
-    factory = PromptFactory(sku=user_prompt, 
-                            context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
-                            debug=debug_prompts)
-    
-    prompt = factory.generate_prompt()
-    #print(prompt)
-    print(f"prompt length: {len(prompt)}")
-
-    model = "google/gemini-flash-1.5-8b"
-
-    llm_response = LLMFactory.query_llm(server=LLM.OPEN_ROUTER,
-                                 model=model,
-                                 system_prompt="You are a helpful assistant", 
-                                 temp=0.0, user_prompt=prompt)
-    #print(llm_response)    
-    parsed_recs = PromptFactory.tryparse_llm(llm_response)
-    print(f"parsed {len(parsed_recs)} records")
-    print(parsed_recs)
-  
-    assert len(parsed_recs) == num_recs  
-
-    #check uniques
-    skus = [item['sku'] for item in parsed_recs]
-    counter = Counter(skus)
-    for sku, count in counter.items():
-        print(f"{sku}: {count}")
-        assert count == 1
-
-    assert user_prompt not in skus
-
-
-@pytest.mark.skip(reason="skipped")
-def test_call_gemini_with_5k_random_logic():
-    raw_products = product_5k()
-    products = ProductFactory.dedupe(raw_products)    
-    print(f"after de-dupe: {len(products)} records")   
-   
-    rp = safe_random.choice(products)
-    user_prompt = rp.sku    
-    num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])    
-
-    debug_prompts = False
-
-    match = [products for products in products if products.sku == user_prompt][0]
-    print(match)    
-    print(f"num_recs: {num_recs}")  
-
-    context = json.dumps([asdict(products) for products in products])
-    factory = PromptFactory(sku=user_prompt, 
-                            context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
-                            debug=debug_prompts)
-    
-    prompt = factory.generate_prompt()
-    #print(prompt)
-    print(f"prompt length: {len(prompt)}")    
-
-    model = "gemini-1.5-flash-8b"
-    
-
-    llm_response = LLMFactory.query_llm(server=LLM.GEMINI,
-                                 model=model,
-                                 system_prompt="You are a helpful assistant", 
-                                 temp=0.0, user_prompt=prompt)
-    #print(llm_response)    
-    parsed_recs = PromptFactory.tryparse_llm(llm_response)   
-    print(f"parsed {len(parsed_recs)} records")
-    print(parsed_recs)
-  
-    assert len(parsed_recs) == num_recs  
-
-    #check uniques
-    skus = [item['sku'] for item in parsed_recs]
-    counter = Counter(skus)
-    for sku, count in counter.items():
-        print(f"{sku}: {count}")
-        assert count == 1
-
-    assert user_prompt not in skus
-
-
-@pytest.mark.skip(reason="skipped")
-def test_call_gemini_with_20k_random_logic():
-    raw_products = product_20k()
-    products = ProductFactory.dedupe(raw_products)    
-    print(f"after de-dupe: {len(products)} records")
-
-    rp = safe_random.choice(products)
-    user_prompt = rp.sku        
-    num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])    
-
-    debug_prompts = False
-
-    match = [products for products in products if products.sku == user_prompt][0]
-    print(match)    
-    print(f"num_recs: {num_recs}")  
-
-    context = json.dumps([asdict(products) for products in products])
-    factory = PromptFactory(sku=user_prompt, 
-                            context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
-                            debug=debug_prompts)
-    
-    prompt = factory.generate_prompt()
-    #print(prompt)
-    print(f"prompt length: {len(prompt)}")    
-
-    model = "gemini-1.5-flash-8b"    
-
-    llm_response = LLMFactory.query_llm(server=LLM.GEMINI,
-                                 model=model,
-                                 system_prompt="You are a helpful assistant", 
-                                 temp=0.0, user_prompt=prompt)
-    #print(llm_response)    
-    parsed_recs = PromptFactory.tryparse_llm(llm_response)   
-    print(f"parsed {len(parsed_recs)} records")
-    print(parsed_recs)
-  
-    assert len(parsed_recs) == num_recs  
-
-    #check uniques
-    skus = [item['sku'] for item in parsed_recs]
-    counter = Counter(skus)
-    for sku, count in counter.items():
-        print(f"{sku}: {count}")
-        assert count == 1
-
-    assert user_prompt not in skus
-
-
-@pytest.mark.skip(reason="skipped")
-def test_call_grok_with_woo_catalog():
-    products = product_woo()
-    print(f"loaded {len(products)} records")
-    assert len(products) == 2038
-    #print(products)
-    dd = ProductFactory.get_dupe_count(products)
-    print(f"dupe count: {dd}")
-    assert dd == 0
-    
-    #24-WB02 =Compete Track Tote
-    #The Compete Track Tote holds a host of exercise supplies with ease. Stash your towel, jacket and street shoes inside. 
-    # Tuck water bottles in easy-access external spaces. 
-    # Perfect for trips to gym or yoga studio, with dual top handles for convenience to and from.
-    
-    user_prompt = "24-WB02"
-    num_recs = 7
-    debug_prompts = False
-
-    match = [products for products in products if products.sku == user_prompt][0]
-    print(f"Getting rec for: {match}")
-
-    context = json.dumps([asdict(products) for products in products])
-    factory = PromptFactory(sku=user_prompt, 
-                            context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
-                            debug=debug_prompts)
-    
-    prompt = factory.generate_prompt()
-    #print(prompt)
-    print(f"prompt length: {len(prompt)}")
-
-    
-    model = "GROK TODO"
-    llm_response = LLMFactory.query_llm(server=LLM.GROK,
-                                 model=model,
-                                 system_prompt="You are a helpful assistant", 
-                                 temp=0.0, user_prompt=prompt)
-    #print(llm_response)    
-    parsed_recs = PromptFactory.tryparse_llm(llm_response)
-    print(f"parsed {len(parsed_recs)} records")
-    print(parsed_recs)
-    
-    assert len(parsed_recs) == num_recs
-
-    #check uniques
-    skus = [item['sku'] for item in parsed_recs]
-    counter = Counter(skus)
-    for sku, count in counter.items():
-        print(f"{sku}: {count}")
-        assert count == 1

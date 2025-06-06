@@ -1,16 +1,17 @@
-
-
 import re
 import json
 import time
 import tiktoken
 import bittensor as bt
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from bitrecs.commerce.product import Product, ProductFactory
+from bitrecs.commerce.user_profile import UserProfile
 
 
 class PromptFactory:
+
+    SEASON = "spring/summer"    
     
     PERSONAS = {
         "luxury_concierge": {
@@ -40,59 +41,30 @@ class PromptFactory:
     }
 
     def __init__(self, 
-                 sku, 
-                 context, 
-                 num_recs=5, 
-                 load_catalog=False, 
-                 debug=False, 
-                 season="spring/summer", 
-                 persona="ecommerce_retail_store_manager"):
+                 sku: str, 
+                 context: str, 
+                 num_recs: int = 5,
+                 load_catalog: bool = False, 
+                 debug: bool = False,
+                 profile: Optional[UserProfile] = None) -> None:
+        
+        if num_recs < 1 or num_recs > 20:
+            raise ValueError("num_recs must be between 1 and 20")        
+
         self.sku = sku
         self.context = context
         self.num_recs = num_recs
-        if self.num_recs < 1 or self.num_recs > 20:
-            raise ValueError("num_recs must be between 1 and 20")        
         self.load_catalog = load_catalog
         self.debug = debug
         self.catalog = []
-        self.season = "spring/summer" if not season else season
-        self.persona = "ecommerce_retail_store_manager" if not persona else persona
-        
-        if self.persona not in self.PERSONAS:
-            raise ValueError(f"Invalid persona. Available personas: {', '.join(self.PERSONAS.keys())}")
- 
-
-    def list_available_personas(self):
-        """Return a list of available personas."""
-        return list(self.PERSONAS.keys())
-        
-
-    def generate_prompt_with_cart(self, cart: List[Product]) -> str:
-        if len(cart) == 0:
-            raise ValueError("Cart cannot be empty")
-        self.cart = cart
-        self.update_context()
-        return self.generate_prompt()
-    
-
-    def update_context(self) -> str:
-        raise NotImplementedError("update_context")
-        st = time.perf_counter()
-        if not self.context:
-            return ""
-        products = ProductFactory.try_parse_products(self.context)
-        if len(products) == 0:
-            return ""
-        for item in self.cart:
-            products = [p for p in products if p.sku != item.sku]
-        #products = [p for p in products if p.sku != self.sku] #TODO: llm assist 
-        et = time.perf_counter()
-        diff = et - st
-        bt.logging.info(f"Updated context in {diff} seconds")   
-        print(f"Updated context in {diff} seconds")     
-        products = sorted(products, key=lambda x: (x.name.lower(), x.price))
-        self.context = json.dumps([p.to_dict() for p in products])
-        return self.context
+        self.cart = []
+        self.orders = []
+        self.season =  PromptFactory.SEASON
+        if not profile:
+            self.persona = "ecommerce_retail_store_manager"
+        else:
+            self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")
+            self.profile = profile
 
 
     def generate_prompt(self) -> str:
@@ -118,6 +90,7 @@ class PromptFactory:
     - Recommend complementary products (X → Y)
     - Avoid variant duplicates (same product in different colors/sizes)
     - Consider seasonal relevance
+  
 
     Current season: <season>{season}</season>
     Today's date: {today}
@@ -125,7 +98,9 @@ class PromptFactory:
     # TASK
     Given a product SKU, select {self.num_recs} complementary products from the provided context.
     Use your persona qualities to THINK about which products to select, but return ONLY a JSON array.
-    Evaluate each products name and price fields when making your recommendations.
+    Evaluate each product name and price fields before making your recommendations. 
+    The name field is the most important attribute followed by price.
+    SKU is not important and should be ignored when making recommendations.
 
     # INPUT
     Query SKU: <query>{self.sku}</query>
@@ -137,19 +112,23 @@ class PromptFactory:
 
     # OUTPUT REQUIREMENTS
     - Return ONLY a JSON array.
-    - Each object must have: sku, name, price.
-    - Important information is in the 'name' field. Use this information to help make your recommendations.
+    - Each item must have: sku, name, price and reason.
+    - Important information is in the name field. Use this information to help make your recommendations.
+    - Consider the gender of the Query SKU, if they are querying a mens product, recommend mens products, if they are querying a womens product, recommend womens products.
+    - If the Query SKU is gender neutral, recommend more gender neutral products.
     - Must return exactly {self.num_recs} items.
     - Items must exist in context.
-    - No duplicates.
-    - Query SKU must not be included.
-    - Order by relevance/profitability.
+    - No duplicates. The result MUST be a SET of products from the context.
+    - Query SKU must not be included in the recommendations.
+    - Order by overall relevance/profitability.
+    - Each item must have a reason explaining why the product is a good recommendation for the related query SKU.
+    - The reason should be a single succinct sentence consisting of plain words without punctuation, or line breaks.
     - No explanations or text outside the JSON array.
 
     Example format:
     [
-        {{"sku": "ABC", "name": "Product Name", "price": "100"}},
-        {{"sku": "DEF", "name": "Another Product", "price": "200"}}
+        {{"sku": "ABC", "name": "Men's Lightweight Hooded Rain Jacket", "price": "149", "reason": "Since the user is looking at mens rainboots, given the season a mens raincoat should be a good fit"}},
+        {{"sku": "DEF", "name": "Davek Elite Umbrella", "price": "159", "reason": "An Umbrella would go nicely with a Lightweight Hooded Rain Jacket and is often paired with it"}}
     ]"""
 
         prompt_length = len(prompt)

@@ -4,8 +4,8 @@ from openai import OpenAI
 class Gemini:
     def __init__(self, 
                  key, 
-                 model="gemini-1.5-flash-8b", 
-                 system_prompt="You are a helpful AI assistant.", 
+                 model="gemini-2.0-flash-lite-001", 
+                 system_prompt="You are a helpful assistant.", 
                  temp=0.0):
         
         self.GEMINI_API_KEY = key

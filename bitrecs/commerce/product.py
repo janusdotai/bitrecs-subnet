@@ -3,6 +3,7 @@ import re
 import json
 import bittensor as bt
 import pandas as pd
+import operator
 from abc import abstractmethod
 from enum import Enum
 from typing import Any, Counter, Dict, Set
@@ -30,7 +31,7 @@ class Product:
     
     def to_json(self) -> str:
         return json.dumps(self.to_dict())
-    
+
 
 class ProductFactory:
 
@@ -126,41 +127,37 @@ class ProductFactory:
         Strict converter expects a json array of products with sku/name/price fields
 
         """ 
-        result: list[Product] = []        
+        result: list[Product] = []
+        rx = re.compile(r"[^A-Za-z0-9 ]")
         try:
-            for product in json.loads(context):
-                if 'sku' not in product:
-                    continue
-                if 'name' not in product:
-                    continue
-                if 'price' not in product:
-                    continue
+            products_data = json.loads(context)
 
-                sku = str(product["sku"])
-                name = str(product["name"])
-                name = re.sub(r"[^A-Za-z0-9 ]", "", name)
-                price = str(product["price"])
-                thing = Product(sku=sku, name=name, price=price)
-                result.append(thing)
+            for product in products_data:
+                sku = product.get("sku")
+                name = product.get("name")
+                price = product.get("price", "0")
+                if not (sku and name and price):
+                    continue
+                
+                sku = str(sku)
+                name = str(name)
+                price = str(price)
+                name = rx.sub("", name).strip()
+                if not name or not sku:
+                    continue
+                    
+                result.append(Product(sku=sku, name=name, price=price))
         except Exception as e:
             bt.logging.error(f"try_parse_context3 Exception: {e}")
-            pass
+            return []        
         
-        sorted_result = sorted(result, key=lambda x: x.name) #TODO: perf test on large context
-        return sorted_result
+        result.sort(key=operator.attrgetter('name'))
+        return result
 
 
    
     @staticmethod
-    def get_dupe_count(products: list[Product]) -> int:
-        # try:
-        #     if not products or len(products) == 0:
-        #         return 0
-        #     sku_counts = Counter(product.sku for product in products)
-        #     return sum(count - 1 for count in sku_counts.values() if count > 1)
-        # except AttributeError as a:
-        #     bt.logging.error(f"WARNING - get_dupe_count failed: {a}")
-        #     return 0
+    def get_dupe_count(products: list[Product]) -> int:       
         return ProductFactory.get_dupe_count_list(products)
         
         
@@ -180,17 +177,9 @@ class ProductFactory:
             return -1
         except Exception as e:
             bt.logging.error(f"ERROR - get_dupe_count_list encountered an unexpected error: {e}")
-            return -1
-        
+            return -1       
     
-    # @staticmethod
-    # def dedupe(products: list[Product]) -> list[Product]:
-    #     unique_products = {}
-    #     for product in products:
-    #         if product.sku not in unique_products:
-    #             unique_products[product.sku] = product
-    #     return list(unique_products.values())
-    
+
 
     @staticmethod
     def dedupe(products: list[Product]) -> Set[Product]:

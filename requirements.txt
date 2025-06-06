@@ -1,10 +1,9 @@
-bittensor==9.2.0
-bittensor-cli==9.2.0
-
+bittensor==9.7.0
+bittensor-cli==9.4.4
 starlette==0.37.2
 pydantic==2.10.4
 pytest==8.3.4
-torch==2.5.1
+torch==2.6.0
 numpy==2.0.2
 setuptools~=70.0.0
 python-dotenv==1.0.1

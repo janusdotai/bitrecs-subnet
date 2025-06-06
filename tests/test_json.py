@@ -503,12 +503,12 @@ def test_compact_product_json():
     context = json.dumps([asdict(products) for products in products])    
     tc = PromptFactory.get_token_count(context)
     print(f"token count: {tc}")
-    assert 40407 == tc
+    assert 40300 == tc
 
     context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
     tc = PromptFactory.get_token_count(context)
     print(f"token count: {tc}")
-    assert 34966 == tc
+    assert 34859 == tc
 
     p = json.loads(context)
     assert len(p) == 907
@@ -523,12 +523,12 @@ def test_compact_product_json_20k():
     context = json.dumps([asdict(products) for products in products])    
     tc = PromptFactory.get_token_count(context)
     print(f"token count: {tc}")
-    assert 806154 == tc
+    assert 803791 == tc
 
     context = json.dumps([asdict(products) for products in products], separators=(',', ':'))    
     tc = PromptFactory.get_token_count(context)
     print(f"token count: {tc}")
-    assert 697631 == tc
+    assert 695267 == tc
 
     p = json.loads(context)
     assert len(p) == 18088

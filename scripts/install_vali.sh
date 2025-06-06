@@ -92,9 +92,14 @@ run_command "ufw allow proto tcp to 0.0.0.0/0 port 7779" "Configuring firewall (
 run_command "yes | ufw enable" "Enabling firewall..." 40
 run_command "ufw reload" "Reloading firewall..." 45
 
-run_command "mount -o remount,size=8G /tmp" "Configuring temporary storage..." 50
-run_command "apt install python3-pip python3.12-venv -y" "Installing Python requirements..." 60
+# Node.js + PM2
+run_command "apt install -y curl gnupg" "Installing curl & gnupg..." 50
+run_command 'curl -fsSL https://deb.nodesource.com/setup_18.x | bash -' "Adding Node.js 18 repo..." 51
+run_command "apt install -y nodejs" "Installing Node.js..." 52
+run_command "npm install -g pm2" "Installing PM2..." 53
 
+run_command "mount -o remount,size=8G /tmp" "Configuring temporary storage..." 55
+run_command "apt install python3-pip python3.12-venv -y" "Installing Python requirements..." 60
 run_command "mkdir -p /bt && cd /bt" "Creating working directory..." 65
 
 # Python environment setup
@@ -102,19 +107,19 @@ run_command "python3.12 -m venv bt_venv" "Creating Python virtual environment...
 run_command "source bt_venv/bin/activate && pip3 install bittensor[torch]" "Installing Bittensor..." 80
 run_command "echo 'source /bt/bt_venv/bin/activate' >> ~/.bashrc" "Configuring environment..." 85
 
-# Miner installation
+# Validator installation
 run_command "cd /bt && rm -rf bitrecs-subnet || true" "Cleaning old installation..." 90
 run_command "cd /bt && git clone https://github.com/janusdotai/bitrecs-subnet.git" "Cloning Bitrecs repository..." 95
 run_command "cd /bt/bitrecs-subnet && pip3 install -r requirements.txt && python3 -m pip install -e ." "Installing Bitrecs..." 100
 
 # Final update
-update_screen 100 "Installation Complete! 🚀"
+update_screen 100 "Installation Complete!"
 
 # Return to normal terminal
 tput rmcup
 echo -e "\n${GREEN}╔════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║       Installation Complete! 🚀         ║${NC}"
+echo -e "${GREEN}║         Installation Complete          ║${NC}"
 echo -e "${GREEN}╚════════════════════════════════════════╝${NC}\n"
 echo -e "${BLUE}Next steps:${NC}"
 echo -e "1. Configure your wallet if you haven't already"
-echo -e "2. Start the miner with your preferred configuration\n"
+echo -e "2. Start the validator with your preferred configuration\n"

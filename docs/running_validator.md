@@ -28,3 +28,10 @@ pm2 start ./neurons/validator.py --name v -- \
 
 ```
 
+## 5. Optionally - Auto Update Validator 
+
+Keep your validator up to date automatically.
+
+```bash
+pm2 start ./scripts/auto_updater.sh --name updater --cron "*/5 * * * *"
+```

@@ -47,4 +47,3 @@ pm2 start ./neurons/miner.py --name m -- \
         --llm.model openrouter/quasar-alpha
 ```
 
-

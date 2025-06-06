@@ -244,7 +244,7 @@ class BaseConverter(BaseModel):
         raise NotImplementedError("BaseConverter not implemented")
     
     def clean(self, raw_value: str) -> str:        
-        result = re.sub(r"[^A-Za-z0-9 ]", "", raw_value)
+        result = re.sub(r"[^A-Za-z0-9 /-]", "", raw_value)
         return result.strip()
     
 

@@ -122,8 +122,8 @@ Bitrecs does not use, collect or farm any customer data, PII or anything related
 
 ### Q2 2025
 
-- [ ] extension marketplace listings
-- [ ] expand miner diversity
+- [x] extension marketplace listings
+- [x] expand miner diversity
 - [ ] launch mainnet
 
 ### Q3 2025

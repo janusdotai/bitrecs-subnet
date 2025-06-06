@@ -207,7 +207,7 @@ class Miner(BaseMinerNeuron):
             if "name" not in dictionary_item:
                 bt.logging.error(f"Item does not contain 'name' key: {dictionary_item}")
                 continue            
-            dictionary_item["name"] = re.sub(r"[^A-Za-z0-9 ]", "", dictionary_item["name"])
+            dictionary_item["name"] = re.sub(r"[^A-Za-z0-9 /-]", "", dictionary_item["name"])
             if "reason" in dictionary_item:
                 dictionary_item["reason"] = re.sub(r"[^A-Za-z0-9 ]", "", dictionary_item["reason"])
             recommendation = str(dictionary_item)

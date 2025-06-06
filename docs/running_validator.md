@@ -8,14 +8,14 @@ curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/script
 ```
 
 ## 2. Keys on machine and register
-Put your keys on the machine, register and stake 
+Put your keys on the machine, register and stake. 
 
 ## 3. Environment Configuration
 
 Before running the validator, edit the .env environment file and fill it in to match your config specs.
 
 ## 4. Start Validator
-Monitor output with pm2 logs 0
+Monitor output with `pm2 logs 0`.
 
 ```bash
 pm2 start ./neurons/validator.py --name v -- \

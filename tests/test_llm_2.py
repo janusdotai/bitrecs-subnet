@@ -157,8 +157,7 @@ def test_call_local_llm_with_1k():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -189,7 +188,7 @@ def test_call_local_llm_with_5k():
     print(f"after de-dupe: {len(products)} records")    
     
     user_prompt = MASTER_SKU
-    num_recs = 6
+    num_recs = 5
     debug_prompts = False
 
     match = [products for products in products if products.sku == user_prompt][0]
@@ -199,8 +198,7 @@ def test_call_local_llm_with_5k():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -241,8 +239,7 @@ def test_call_local_llm_with_20k():
     context = json.dumps([asdict(products) for products in products], separators=(',', ':'))
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -290,8 +287,7 @@ def test_call_local_llm_with_20k_random_logic():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt,
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -340,8 +336,7 @@ def test_call_local_llm_with_shopify_1k_random_logic():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt,
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()

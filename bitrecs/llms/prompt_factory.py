@@ -7,7 +7,7 @@ from typing import List, Optional
 from datetime import datetime
 from bitrecs.commerce.product import Product, ProductFactory
 from bitrecs.commerce.user_profile import UserProfile
-
+from bitrecs.utils import constants as CONST
 
 class PromptFactory:
 
@@ -43,18 +43,25 @@ class PromptFactory:
     def __init__(self, 
                  sku: str, 
                  context: str, 
-                 num_recs: int = 5,
-                 load_catalog: bool = False, 
-                 debug: bool = False,
-                 profile: Optional[UserProfile] = None) -> None:
-        
-        if num_recs < 1 or num_recs > 20:
-            raise ValueError("num_recs must be between 1 and 20")        
+                 num_recs: int = 5,                                  
+                 profile: Optional[UserProfile] = None,
+                 debug: bool = False) -> None:
+        """
+        Generates a prompt for product recommendations based on the provided SKU and context.
+        :param sku: The SKU of the product being viewed.
+        :param context: The context string containing available products.
+        :param num_recs: The number of recommendations to generate (default is 5).
+        :param profile: Optional UserProfile object containing user-specific data.
+        :param debug: If True, enables debug logging."""
+
+        if len(sku) < CONST.MIN_QUERY_LENGTH or len(sku) > CONST.MAX_QUERY_LENGTH:
+            raise ValueError(f"SKU must be between {CONST.MIN_QUERY_LENGTH} and {CONST.MAX_QUERY_LENGTH} characters long")
+        if num_recs < 1 or num_recs > CONST.MAX_RECS_PER_REQUEST:
+            raise ValueError(f"num_recs must be between 1 and {CONST.MAX_RECS_PER_REQUEST}")
 
         self.sku = sku
         self.context = context
         self.num_recs = num_recs
-        self.load_catalog = load_catalog
         self.debug = debug
         self.catalog = []
         self.cart = []
@@ -63,8 +70,10 @@ class PromptFactory:
         if not profile:
             self.persona = "ecommerce_retail_store_manager"
         else:
-            self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")
             self.profile = profile
+            self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")            
+            self.cart = profile.cart
+            self.orders = profile.orders
 
 
     def generate_prompt(self) -> str:

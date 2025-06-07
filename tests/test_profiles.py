@@ -1,5 +1,7 @@
 import json
+import random
 from typing import List
+from dataclasses import asdict
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.utils.misc import ttl_cache
 from bitrecs.commerce.user_profile import UserProfile
@@ -20,11 +22,12 @@ TEST_PROFILE = """{"id":"123","created_at":"2025-05-31T18:45:13Z",
 {"order_id":"2992","total":"47.46","status":"processing","created_at":"2024-12-30T02:47:12Z","items":[{"sku":"WH05-XS-Orange","name":"Selene Yoga Hoodie - XS, Orange","price":"42"}]}
 ],"site_config":{"profile":"ecommerce_retail_store_manager"}}"""
 
+
 @ttl_cache(ttl=900)
-def product_1k() -> List[Product]:
-    asos_catalog = "./tests/data/asos/sample_1k.csv" 
-    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, asos_catalog)
-    products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)    
+def product_woo():
+    woo_catalog = "./tests/data/woocommerce/product_catalog.csv" #2038 records
+    catalog = ProductFactory.tryload_catalog_to_json(CatalogProvider.WOOCOMMERCE, woo_catalog)
+    products = ProductFactory.convert(catalog, CatalogProvider.WOOCOMMERCE)
     return products
 
 
@@ -59,7 +62,7 @@ def test_parse_profile_dict():
 
 def test_parse_profile_with_cart():
     cart_count = 5
-    cart = product_1k()[:cart_count]
+    cart = product_woo()[:cart_count]
     cart_dicts = [product.to_dict() for product in cart]
 
     profile_dict = {
@@ -96,6 +99,37 @@ def test_persona_parse_default():
     assert thing["tone"] is not None
     assert thing["response_style"] is not None
     assert thing["priorities"] is not None
+
+
+def test_profile_load_cart_orders_in_prompt_factory():
+    profile = UserProfile.tryparse_profile(TEST_PROFILE)
+    products = product_woo()   
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))
+
+    viewing_product = random.choice(products)
+    user_prompt = viewing_product.sku
+
+    factory = PromptFactory(sku=user_prompt,
+                            context=context, 
+                            num_recs=5,
+                            profile=profile,
+                            debug=False)   
+
+    prompt = factory.generate_prompt()
+    #print(f"Prompt: {prompt}")
+
+    tc = factory.get_token_count(prompt)
+    print(f"Token count: {tc}")    
+    
+    assert factory.profile is not None    
+    assert factory.profile.id == "123"
+    assert factory.profile.created_at == "2025-05-31T18:45:13Z"
+    assert factory.profile.site_config == {"profile": "ecommerce_retail_store_manager"}    
+    assert factory.num_recs == 5
+    assert len(factory.profile.cart) == 2
+    assert len(factory.profile.orders) == 10   
+    
+
 
     
 

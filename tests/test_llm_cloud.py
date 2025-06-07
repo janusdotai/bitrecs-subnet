@@ -177,8 +177,7 @@ def test_call_local_llm_with_1k_for_baseline():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -255,8 +254,7 @@ def test_call_all_cloud_providers_1k_woo_products():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -323,8 +321,7 @@ def test_call_multiple_open_router_1k_amazon_random():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -400,8 +397,7 @@ def test_call_multiple_open_router_amazon_5k_random():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()
@@ -480,8 +476,7 @@ def test_call_chutes():
     context = json.dumps([asdict(products) for products in products])
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()

@@ -247,8 +247,7 @@ def get_rec(products, sku, model=None, num_recs=5) -> List:
     context = json.dumps([asdict(products) for products in products])   
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()    
@@ -300,8 +299,7 @@ def mock_br_request(products: List[Product],
     context = json.dumps([asdict(products) for products in products])    
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()    
@@ -354,8 +352,7 @@ def mock_br_request_cloud(products: List[Product],
     context = json.dumps([asdict(products) for products in products])    
     factory = PromptFactory(sku=user_prompt, 
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
+                            num_recs=num_recs,
                             debug=debug_prompts)
     
     prompt = factory.generate_prompt()

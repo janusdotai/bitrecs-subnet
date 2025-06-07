@@ -75,9 +75,9 @@ async def do_work(user_prompt: str,
 
     factory = PromptFactory(sku=user_prompt,
                             context=context, 
-                            num_recs=num_recs, 
-                            load_catalog=False, 
-                            debug=debug_prompts)    
+                            num_recs=num_recs,                                                         
+                            debug=debug_prompts,
+                            profile=profile)
     prompt = factory.generate_prompt()
     try:
         llm_response = LLMFactory.query_llm(server=server, 

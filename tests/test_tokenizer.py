@@ -86,7 +86,6 @@ def test_get_token_count_random1k_prompt():
     factory = PromptFactory(sku=user_prompt,
                             context=context,
                             num_recs=num_recs,
-                            load_catalog=False,
                             debug=debug_prompts)    
 
 
@@ -124,7 +123,6 @@ def test_get_token_count_random5k_prompt():
     factory = PromptFactory(sku=user_prompt,
                             context=context,
                             num_recs=num_recs,
-                            load_catalog=False,
                             debug=debug_prompts)
 
 
@@ -163,7 +161,6 @@ def test_get_token_count_random20k_prompt():
     factory = PromptFactory(sku=user_prompt,
                             context=context,
                             num_recs=num_recs,
-                            load_catalog=False,
                             debug=debug_prompts)
 
 

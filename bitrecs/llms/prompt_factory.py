@@ -5,7 +5,6 @@ import tiktoken
 import bittensor as bt
 from typing import List, Optional
 from datetime import datetime
-from bitrecs.commerce.product import Product, ProductFactory
 from bitrecs.commerce.user_profile import UserProfile
 from bitrecs.utils import constants as CONST
 
@@ -85,8 +84,9 @@ class PromptFactory:
         persona_data = self.PERSONAS[self.persona]
 
         prompt = f"""# SCENARIO
-    A shopper is viewing a product with SKU <query>{self.sku}</query> in your e-commerce store.
-    They are looking for complementary products to add to their cart.    
+    A shopper is viewing a product with SKU <sku>{self.sku}</sku> on your e-commerce store.
+    They are looking for complementary products to add to their cart.
+    You will build a recommendation set based on the provided context and your persona qualities.
         
     # YOUR PERSONA
     <persona>{self.persona}</persona>
@@ -114,31 +114,38 @@ class PromptFactory:
     The name field is the most important attribute followed by price.
     The product name will often contain important information like which category it belongs to, sometimes denoted by | characters indicating the category hierarchy.
     You are expected to use all information holistically as a {self.persona} to make the best recommendations.
+    Do not recommend products that are already in the cart.
 
     # INPUT
-    Query SKU: <query>{self.sku}</query>
+    Query SKU: <sku>{self.sku}</sku>
 
     Available products:
     <context>
     {self.context}
     </context>
 
+    Current cart:
+    <cart>
+    {json.dumps(self.cart, separators=(',', ':'))}
+    </cart>
+
     # OUTPUT REQUIREMENTS
     - Return ONLY a JSON array.
     - Each item must have: sku, name, price and reason.
     - If the Query SKU product is gendered, consider recommending products that match the gender of the Query SKU.
     - If the Query SKU is gender neutral, recommend more gender neutral products.
-    - Never mix gendered products in the same recommendation set, use common sense for example if the user is looking at womans shoes, do not recommend mens shoes.
+    - Never mix gendered products in the recommendation set, use common sense for example if the user is looking at womans shoes, do not recommend mens shoes.
     - Do not conflate pet products with baby products, they are different categories.
     - Must return exactly {self.num_recs} items.
-    - Items must exist in context.
-    - No duplicates. The result MUST be a SET of products from the context.
+    - Return items MUST exist in context.
+    - Return items must NOT exist in the cart.
+    - No duplicates. Very important! The final result MUST be a SET of products from the context.
     - Product matching Query SKU must not be included in the set of recommendations.
-    - Order By overall relevance/profitability, the first being your top recommendation.
-    - Each item must have a reason explaining why the product is a good recommendation for the related query SKU.
+    - Return items should be ordered by relevance/profitability, the first being your top recommendation.
+    - Each item must have a reason explaining why the product is a good recommendation for the related Query SKU.
     - The reason should be a single succinct sentence consisting of plain words without punctuation, or line breaks.
-    - You will be graded on your reasoning, so make sure to provide a good reason for each recommendation!
-    - If you recommend non-sensical products, you will be penalized heavily and possibly banned from the system.
+    - You will be graded on your reasoning, so make sure to provide a good reason for each recommendation which is relevant to the Query SKU.
+    - If you recommend nonsensical products, you will be penalized heavily and possibly banned from the system.
     - No explanations or text outside the JSON array.
 
     Example format:

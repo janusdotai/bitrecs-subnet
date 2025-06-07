@@ -148,7 +148,7 @@ def test_call_local_llm_with_1k():
     products = ProductFactory.dedupe(products)
     
     user_prompt = MASTER_SKU
-    num_recs = 5
+    num_recs = 5    
     debug_prompts = False
 
     match = [products for products in products if products.sku == user_prompt][0]
@@ -229,7 +229,8 @@ def test_call_local_llm_with_20k():
     print(f"after de-dupe: {len(products)} records")
     
     user_prompt = MASTER_SKU
-    num_recs = 5
+    #num_recs = 5
+    num_recs = safe_random.choice([5, 6, 7, 8, 9, 10, 11, 12, 16, 20])
     debug_prompts = False
 
     match = [products for products in products if products.sku == user_prompt][0]

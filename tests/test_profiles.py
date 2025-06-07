@@ -2,10 +2,13 @@ import json
 import random
 from typing import List
 from dataclasses import asdict
+from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.utils.misc import ttl_cache
 from bitrecs.commerce.user_profile import UserProfile
 from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
+from dotenv import load_dotenv
+load_dotenv()
 
 TEST_PROFILE = """{"id":"123","created_at":"2025-05-31T18:45:13Z",
 "cart":[{"sku":"24-WB02","name":"Compete Track Tote","price":"32"},{"sku":"24-WG087","name":"Sprite Yoga Strap 10 foot","price":"21"}],
@@ -116,7 +119,7 @@ def test_profile_load_cart_orders_in_prompt_factory():
                             debug=False)   
 
     prompt = factory.generate_prompt()
-    #print(f"Prompt: {prompt}")
+    print(f"Prompt: {prompt}")
 
     tc = factory.get_token_count(prompt)
     print(f"Token count: {tc}")    
@@ -130,7 +133,51 @@ def test_profile_load_cart_orders_in_prompt_factory():
     assert len(factory.profile.orders) == 10   
     
 
+def test_profile_call_local_llm_cart_not_in_recs():
+    profile = UserProfile.tryparse_profile(TEST_PROFILE)
+    products = product_woo()   
+    context = json.dumps([asdict(products) for products in products], separators=(',', ':'))
 
+    viewing_product = random.choice(products)
+    user_prompt = viewing_product.sku
+    num_recs = 5
+    factory = PromptFactory(sku=user_prompt,
+                            context=context, 
+                            num_recs=num_recs,
+                            profile=profile,
+                            debug=False)
+    
+
+    assert factory.profile is not None    
+    assert factory.profile.id == "123"
+    assert factory.profile.created_at == "2025-05-31T18:45:13Z"
+    assert factory.profile.site_config == {"profile": "ecommerce_retail_store_manager"}    
+    assert factory.num_recs == 5
+    assert len(factory.profile.cart) == 2
+    assert len(factory.profile.orders) == 10   
+
+    prompt = factory.generate_prompt()
+    #print(f"Prompt: {prompt}")
+
+    tc = factory.get_token_count(prompt)
+    print(f"Token count: {tc}")    
+
+    model = "mistral-nemo"
+    llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
+                                 model=model, 
+                                 system_prompt="You are a helpful assistant", 
+                                 temp=0.0, user_prompt=prompt)
+    #print(llm_response)    
+    parsed_recs = PromptFactory.tryparse_llm(llm_response)   
+    print(f"parsed {len(parsed_recs)} records")
+    print(parsed_recs)
+    
+    assert len(parsed_recs) == num_recs
+    
+    for rec in parsed_recs:
+        sku = rec['sku']        
+        assert sku not in [product['sku'] for product in profile.cart], f"SKU {sku} should not be in cart"
+        
     
 
 

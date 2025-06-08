@@ -4,6 +4,7 @@ import json
 import bittensor as bt
 import pandas as pd
 import operator
+import bitrecs.utils.constants as CONST
 from abc import abstractmethod
 from enum import Enum
 from typing import Any, Counter, Dict, Set
@@ -127,8 +128,7 @@ class ProductFactory:
         Strict converter expects a json array of products with sku/name/price fields
 
         """ 
-        result: list[Product] = []
-        rx = re.compile(r"[^A-Za-z0-9 ]")
+        result: list[Product] = []        
         try:
             products_data = json.loads(context)
 
@@ -142,7 +142,7 @@ class ProductFactory:
                 sku = str(sku)
                 name = str(name)
                 price = str(price)
-                name = rx.sub("", name).strip()
+                name = CONST.RE_PRODUCT_NAME.sub("", name).strip()
                 if not name or not sku:
                     continue
                     
@@ -243,8 +243,8 @@ class BaseConverter(BaseModel):
     def convert(self, context: str) -> list[Product]:
         raise NotImplementedError("BaseConverter not implemented")
     
-    def clean(self, raw_value: str) -> str:        
-        result = re.sub(r"[^A-Za-z0-9 |-]", "", raw_value)
+    def clean(self, raw_value: str) -> str:       
+        result = CONST.RE_PRODUCT_NAME.sub("", raw_value)
         return result.strip()
     
 

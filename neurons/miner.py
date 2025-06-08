@@ -24,6 +24,7 @@ import typing
 import bittensor as bt
 import asyncio
 import ast
+import bitrecs.utils.constants as CONST
 from typing import List
 from datetime import datetime, timedelta, timezone
 from bitrecs.base.miner import BaseMinerNeuron
@@ -35,7 +36,6 @@ from bitrecs.utils.runtime import execute_periodically
 from bitrecs.utils.uids import best_uid
 from bitrecs.utils.gpu import GPUInfo
 from bitrecs.utils.version import LocalMetadata
-from bitrecs.utils import constants as CONST
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -201,22 +201,22 @@ class Miner(BaseMinerNeuron):
 
         #Do some cleanup - schema is validated in the reward function
         final_results = []
-        for item in results:            
+        for item in results:
             cleaned_item = str(item).replace("\\'", "'")
             dictionary_item = ast.literal_eval(cleaned_item)
             if "name" not in dictionary_item:
                 bt.logging.error(f"Item does not contain 'name' key: {dictionary_item}")
-                continue            
-            dictionary_item["name"] = re.sub(r"[^A-Za-z0-9 |-]", "", dictionary_item["name"])
+                continue
+            dictionary_item["name"] = CONST.RE_PRODUCT_NAME.sub("", dictionary_item["name"])
             if "reason" in dictionary_item:
-                dictionary_item["reason"] = re.sub(r"[^A-Za-z0-9 ]", "", dictionary_item["reason"])
+                dictionary_item["reason"] = CONST.RE_REASON.sub("", dictionary_item["reason"])                                
             recommendation = str(dictionary_item)
             final_results.append(recommendation)
       
         output_synapse=BitrecsRequest(
             name=synapse.name, 
             axon=synapse.axon,
-            dendrite=synapse.dendrite,            
+            dendrite=synapse.dendrite,
             created_at=created_at,
             user="",
             num_results=num_recs,

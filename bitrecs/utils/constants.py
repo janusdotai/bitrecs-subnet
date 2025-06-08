@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 """
@@ -17,6 +18,8 @@ Constants:
     VERSION_CHECK_INTERVAL (int): Length of seconds between version checks.
     CATALOG_DUPE_THRESHOLD (float): Threshold for duplicate products in a catalog.
     R2_SYNC_INTERVAL (int): Length of seconds between R2 syncs.
+    RX_PRODUCT_NAME (Pattern): Regular expression to match valid product names.
+    RX_REASON (Pattern): Regular expression to match valid reasons.
 
 """
 ROOT_DIR = Path(__file__).parent.parent
@@ -32,3 +35,5 @@ ACTION_SYNC_INTERVAL = 1800
 VERSION_CHECK_INTERVAL = 600
 CATALOG_DUPE_THRESHOLD = 0.05
 R2_SYNC_INTERVAL = 3600
+RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
+RE_REASON = re.compile(r"[^A-Za-z0-9 ]")

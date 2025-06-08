@@ -3,10 +3,11 @@ import json
 import time
 import tiktoken
 import bittensor as bt
+import bitrecs.utils.constants as CONST
 from typing import List, Optional
 from datetime import datetime
 from bitrecs.commerce.user_profile import UserProfile
-from bitrecs.utils import constants as CONST
+
 
 class PromptFactory:
 

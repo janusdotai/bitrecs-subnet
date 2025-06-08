@@ -64,14 +64,16 @@ class PromptFactory:
         self.debug = debug
         self.catalog = []
         self.cart = []
+        self.cart_json = "[]"
         self.orders = []
-        self.season =  PromptFactory.SEASON
+        self.season =  PromptFactory.SEASON        
         if not profile:
             self.persona = "ecommerce_retail_store_manager"
         else:
             self.profile = profile
-            self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")            
+            self.persona = profile.site_config.get("profile", "ecommerce_retail_store_manager")
             self.cart = profile.cart
+            self.cart_json = json.dumps(self.cart, separators=(',', ':'))
             self.orders = profile.orders
 
 
@@ -126,7 +128,7 @@ class PromptFactory:
 
     Current cart:
     <cart>
-    {json.dumps(self.cart, separators=(',', ':'))}
+    {self.cart_json}
     </cart>
 
     # OUTPUT REQUIREMENTS

@@ -16,14 +16,17 @@
 # OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-import os
-import re
+
+#import os
+#import re
 import sys
 import time
 import typing
 import bittensor as bt
 import asyncio
-import ast
+#import ast
+import json
+import json_repair
 import bitrecs.utils.constants as CONST
 from typing import List
 from datetime import datetime, timedelta, timezone
@@ -49,10 +52,10 @@ async def do_work(user_prompt: str,
                   profile : UserProfile = None,
                   debug_prompts=False) -> List[str]:
     """
-    Do your miner work here. 
-    This function is called by the forward function to generate recommendations.
+    Miner work is done here.
+    This function is invoked by the API validator to generate recommendations.
     You can use any method you prefer to generate the data.
-    The default setup will use Open Router.
+    The default setup will use OPEN_ROUTER.
 
     Args:
         user_prompt (str): The user query (generally the SKU they are browsing)
@@ -202,17 +205,28 @@ class Miner(BaseMinerNeuron):
         #Do some cleanup - schema is validated in the reward function
         final_results = []
         for item in results:
-            cleaned_item = str(item).replace("\\'", "'")
-            dictionary_item = ast.literal_eval(cleaned_item)
-            if "name" not in dictionary_item:
-                bt.logging.error(f"Item does not contain 'name' key: {dictionary_item}")
+            try:
+                item_str = str(item)
+                try:
+                    dictionary_item = json.loads(item_str)
+                except json.JSONDecodeError:
+                    repaired = json_repair.repair_json(item_str)
+                    dictionary_item = json.loads(repaired)
+                
+                if "name" not in dictionary_item:
+                    bt.logging.error(f"Item missing 'name' key: {dictionary_item}")
+                    continue
+                dictionary_item["name"] = CONST.RE_PRODUCT_NAME.sub("", str(dictionary_item["name"]))
+
+                if "reason" in dictionary_item:
+                    dictionary_item["reason"] = CONST.RE_REASON.sub("", str(dictionary_item["reason"]))
+                
+                recommendation = json.dumps(dictionary_item, separators=(',', ':'))
+                final_results.append(recommendation)
+            except Exception as e:
+                bt.logging.error(f"Failed to parse LLM result: {item}, error: {e}")
                 continue
-            dictionary_item["name"] = CONST.RE_PRODUCT_NAME.sub("", dictionary_item["name"])
-            if "reason" in dictionary_item:
-                dictionary_item["reason"] = CONST.RE_REASON.sub("", dictionary_item["reason"])                                
-            recommendation = str(dictionary_item)
-            final_results.append(recommendation)
-      
+        
         output_synapse=BitrecsRequest(
             name=synapse.name, 
             axon=synapse.axon,

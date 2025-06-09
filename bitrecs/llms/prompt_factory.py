@@ -134,6 +134,8 @@ class PromptFactory:
 
     # OUTPUT REQUIREMENTS
     - Return ONLY a JSON array.
+    - NO Python dictionary syntax (no single quotes).
+    - Each item must be valid JSON with: "sku": "...", "name": "...", "price": "...", "reason": "..."
     - Each item must have: sku, name, price and reason.
     - If the Query SKU product is gendered, consider recommending products that match the gender of the Query SKU.
     - If the Query SKU is gender neutral, recommend more gender neutral products.

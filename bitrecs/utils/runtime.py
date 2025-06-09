@@ -1,6 +1,4 @@
-import bittensor as bt
 import asyncio
-
 from datetime import datetime, timedelta
 from typing import Optional, Dict
 from functools import wraps

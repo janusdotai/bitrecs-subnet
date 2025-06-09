@@ -45,8 +45,7 @@ from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.distance import display_rec_matrix, rec_list_to_set, select_most_similar_bitrecs_safe
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
-from bitrecs.utils.logging import (
-    log_miner_responses, 
+from bitrecs.utils.logging import (    
     read_timestamp, 
     write_timestamp, 
     log_miner_responses_to_sql

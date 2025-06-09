@@ -1,10 +1,6 @@
-
-from os import path
 import os
-import pathlib
 import base64
 import requests
-
 
 class OllamaLocal():
     def __init__(self, 

@@ -4,7 +4,6 @@ import bittensor as bt
 import numpy as np
 import random
 from typing import List
-from bittensor.core.metagraph import NonTorchMetagraph
 
 
 def check_uid_availability(

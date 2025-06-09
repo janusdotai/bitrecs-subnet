@@ -1,6 +1,5 @@
 import re
 import json
-import time
 import tiktoken
 import bittensor as bt
 import bitrecs.utils.constants as CONST

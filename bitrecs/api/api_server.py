@@ -1,4 +1,3 @@
-from dataclasses import asdict
 import os
 import json
 import time
@@ -6,6 +5,7 @@ import bittensor as bt
 import hmac
 import hashlib
 import threading
+from dataclasses import asdict
 from typing import Callable
 from functools import partial
 from fastapi import FastAPI, HTTPException, Request, APIRouter, Header

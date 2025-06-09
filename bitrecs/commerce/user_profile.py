@@ -1,4 +1,3 @@
-import os
 import json
 import bittensor as bt
 from dataclasses import dataclass, field

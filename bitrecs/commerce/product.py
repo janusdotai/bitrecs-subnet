@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import bittensor as bt
 import pandas as pd

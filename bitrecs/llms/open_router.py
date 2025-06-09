@@ -1,4 +1,3 @@
-import os
 from openai import OpenAI
 
 class OpenRouter:    

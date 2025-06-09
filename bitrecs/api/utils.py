@@ -1,5 +1,5 @@
-import bittensor as bt
 import httpx
+import bittensor as bt
 from typing import Any, Union
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse

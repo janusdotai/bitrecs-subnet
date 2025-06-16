@@ -19,7 +19,7 @@ class OllamaLocal():
         if temp < 0 or temp > 1:
             raise Exception
         self.temp = temp
-        self.keep_alive = 1800
+        self.keep_alive = 3600
 
 
     def file_to_base64(self, file_path) -> str:

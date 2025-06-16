@@ -182,3 +182,4 @@ timestamp.txt
 *.key
 *.pem
 *.sql
+*.Identifier

@@ -288,19 +288,20 @@ class ApiServer:
                 bt.logging.error(f"API invalid catalog size")
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - invalid catalog - size", "status_code": 400})
-
-            dupes = ProductFactory.get_dupe_count_list(store_catalog)
-            if dupes == -1:
-                bt.logging.error(f"API invalid catalog")
-                return JSONResponse(status_code=400,
-                                    content={"detail": "error - invalid catalog - format", "status_code": 400})
             
-            if dupes > catalog_size * CONST.CATALOG_DUPE_THRESHOLD:
-                bt.logging.error(f"API Too many duplicates in catalog: {dupes}")                
-                return JSONResponse(status_code=400,
-                                    content={"detail": "error - dupe threshold reached", "status_code": 400})
+            if 1==2:
 
-            #Reduce json size for context
+                dupes = ProductFactory.get_dupe_count_list(store_catalog)
+                if dupes == -1:
+                    bt.logging.error(f"API invalid catalog")
+                    return JSONResponse(status_code=400,
+                                        content={"detail": "error - invalid catalog - format", "status_code": 400})
+                
+                if dupes > catalog_size * CONST.CATALOG_DUPE_THRESHOLD:
+                    bt.logging.error(f"API Too many duplicates in catalog: {dupes}")                
+                    return JSONResponse(status_code=400,
+                                        content={"detail": "error - dupe threshold reached", "status_code": 400})
+            
             request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
 
             st = time.perf_counter()
@@ -331,7 +332,8 @@ class ApiServer:
                 # Remove any None entries while preserving order
                 final_recs = [r for r in final_recs if r is not None]
 
-            final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
+            #final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
+            final_recs = [json.loads(idx) for idx in response.results]
 
             response = {
                 "user": "", 

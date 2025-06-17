@@ -11,6 +11,7 @@ from functools import partial
 from fastapi import FastAPI, HTTPException, Request, APIRouter, Header
 from fastapi.responses import JSONResponse
 from fastapi.middleware.gzip import GZipMiddleware
+from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.utils import constants as CONST
 from bitrecs.commerce.product import ProductFactory
 from bitrecs.protocol import BitrecsRequest
@@ -273,18 +274,23 @@ class ApiServer:
             st_a = int(time.time())
 
             await self.verify_request2(request, x_signature, x_timestamp)
-            
+            tc = PromptFactory.get_token_count(request.context)
+            if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
+                bt.logging.error(f"API context too large: {tc} tokens")
+                return JSONResponse(status_code=400,
+                                    content={"detail": "error - context too large", "status_code": 400})
+
             store_catalog = ProductFactory.try_parse_context_strict(request.context)
-            catalog_size = len(store_catalog)
             bt.logging.trace(f"REQUEST CATALOG SIZE: {catalog_size}")
+            catalog_size = len(store_catalog)
             if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
-                bt.logging.error(f"API invalid catalog size")                
+                bt.logging.error(f"API invalid catalog size")
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - invalid catalog - size", "status_code": 400})
 
             dupes = ProductFactory.get_dupe_count_list(store_catalog)
             if dupes == -1:
-                bt.logging.error(f"API invalid catalog")                
+                bt.logging.error(f"API invalid catalog")
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - invalid catalog - format", "status_code": 400})
             

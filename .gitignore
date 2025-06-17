@@ -182,4 +182,6 @@ timestamp.txt
 *.key
 *.pem
 *.sql
-*.Identifier
+*.env copy
+*.sqlite
+.env2

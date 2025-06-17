@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-DB_PATH = "tests/data/testdb/music_db.sqlite"
+DB_PATH = "/data/tests/store.sqlite"
 MIN_ORDER_CLIP = 25.00
 
 
@@ -594,11 +594,11 @@ def test_sample_user_profile():
     assert len(profile.orders) > 0, "UserProfile should have at least one order."
     
     
-@pytest.skip("Skipping test_sample_profile_get_similar_orders, requires database setup")
+#@pytest.skip("Skipping test_sample_profile_get_similar_orders, requires database setup")
 def test_sample_profile_get_similar_orders():
     num_recs = 5
     profile = get_sample_user_profile()    
-    products = products_music()
+    products = products_music()[:5000]
     print(f"Loaded {len(products)} products from the database.")
     print(f"User profile: {profile.id} with {len(profile.orders)} orders and {len(profile.cart)} items in cart.")
 
@@ -622,12 +622,12 @@ def test_sample_profile_get_similar_orders():
                             context=context, 
                             num_recs=num_recs,
                             profile=profile,
-                            debug=False)
+                            debug=True)
     prompt = factory.generate_prompt()    
     tc = factory.get_token_count(prompt)
     print(f"Token count: {tc}")
 
-    #model = "deepseek-r1:70b"
+    model = "deepseek-r1:70b"
     #model = "mistral-large:latest"
     #model = "gemma3:27b"
     #model = "mistral-nemo"    
@@ -635,7 +635,7 @@ def test_sample_profile_get_similar_orders():
     #model = "llama3.3:70b"
     #model = "google/gemini-2.5-flash-preview-05-20"
     #model = "google/gemini-2.0-flash-lite-001"
-    model = "google/gemini-2.0-flash-001"
+    #model = "google/gemini-2.0-flash-001"
     #model = "amazon/nova-lite-v1"
     #model = "openai/gpt-4.1-nano"
     #model = "openai/gpt-4.1-mini"
@@ -644,7 +644,7 @@ def test_sample_profile_get_similar_orders():
     #model = "openai/gpt-4.1"
 
     print(f"Using model:  \033[1;32m {model} \033[0m")
-    llm_response = LLMFactory.query_llm(server=LLM.OPEN_ROUTER,
+    llm_response = LLMFactory.query_llm(server=LLM.OLLAMA_LOCAL,
                                  model=model, 
                                  system_prompt="You are a helpful assistant", 
                                  temp=0.0, user_prompt=prompt)

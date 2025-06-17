@@ -274,6 +274,7 @@ class ApiServer:
             st_a = int(time.time())
 
             await self.verify_request2(request, x_signature, x_timestamp)
+            
             tc = PromptFactory.get_token_count(request.context)
             if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
                 bt.logging.error(f"API context too large: {tc} tokens")

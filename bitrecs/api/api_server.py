@@ -274,7 +274,7 @@ class ApiServer:
             st_a = int(time.time())
 
             await self.verify_request2(request, x_signature, x_timestamp)
-            
+
             tc = PromptFactory.get_token_count(request.context)
             if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
                 bt.logging.error(f"API context too large: {tc} tokens")
@@ -310,25 +310,28 @@ class ApiServer:
             bt.logging.trace(response_text)
 
             if len(response.results) == 0:
-                bt.logging.error(f"API forward_fn response has no results")                
+                bt.logging.error(f"API forward_fn response has no results")
                 return JSONResponse(status_code=500,
                                     content={"detail": "error - forward", "status_code": 500})
 
-            #TODO: reward is not 100% strict as we tolerate llms returning good enough json
-            #however our standard to return to clients must be strict and fail gracefully
-            final_recs = [None] * len(response.results)  # Pre-allocate list with same length
-            for i, idx in enumerate(response.results):
-                try:
-                    repaired = repair_json(idx)
-                    rec = json.loads(repaired)
-                    standardized = json.dumps(rec)
-                    final_recs[i] = json.loads(standardized)
-                except Exception as e:
-                    bt.logging.error(f"Failed to standardize result at index {i}: {idx}, error: {e}")
-                    final_recs[i] = None  # Mark failed entries as None
+            if 1==2:
+                #TODO: reward is not 100% strict as we tolerate llms returning good enough json
+                #however our standard to return to clients must be strict and fail gracefully
+                final_recs = [None] * len(response.results)  # Pre-allocate list with same length
+                for i, idx in enumerate(response.results):
+                    try:
+                        repaired = repair_json(idx)
+                        rec = json.loads(repaired)
+                        standardized = json.dumps(rec)
+                        final_recs[i] = json.loads(standardized)
+                    except Exception as e:
+                        bt.logging.error(f"Failed to standardize result at index {i}: {idx}, error: {e}")
+                        final_recs[i] = None  # Mark failed entries as None
 
-            # Remove any None entries while preserving order
-            final_recs = [r for r in final_recs if r is not None]
+                # Remove any None entries while preserving order
+                final_recs = [r for r in final_recs if r is not None]
+
+            final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
 
             response = {
                 "user": "", 

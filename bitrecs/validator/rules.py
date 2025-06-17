@@ -16,7 +16,7 @@ def validate_br_request(synapse: BitrecsRequest) -> bool:
     if synapse.context is None or synapse.context == "":
         bt.logging.error(f"Context is empty!: {synapse}")
         return False
-    if len(synapse.context) > CONST.MAX_CONTEXT_LENGTH:
+    if len(synapse.context) > CONST.MAX_CONTEXT_TEXT_LENGTH:
         bt.logging.error(f"Context is too long!: {synapse}")
         return False
     if len(synapse.models_used) != 0:

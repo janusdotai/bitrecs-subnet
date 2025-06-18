@@ -395,10 +395,8 @@ class BaseValidatorNeuron(BaseNeuron):
                     
                         bt.logging.info(f"Scored responses: {rewards}")
                         self.update_scores(rewards, chosen_uids)
+                        log_miner_responses_to_sql(self.step, responses)
                         
-                        if self.config.logging.trace or 1==1:
-                            #log_miner_responses(self.step, responses)
-                            log_miner_responses_to_sql(self.step, responses)
                     else:
                         if not api_exclusive: #Regular validator loop  
                             bt.logging.info("Processing synthetic concurrent forward")

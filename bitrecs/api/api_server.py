@@ -282,8 +282,8 @@ class ApiServer:
                                     content={"detail": "error - context too large", "status_code": 400})
 
             store_catalog = ProductFactory.try_parse_context_strict(request.context)
-            bt.logging.trace(f"REQUEST CATALOG SIZE: {catalog_size}")
             catalog_size = len(store_catalog)
+            bt.logging.trace(f"REQUEST CATALOG SIZE: {catalog_size}")
             if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
                 bt.logging.error(f"API invalid catalog size")
                 return JSONResponse(status_code=400,

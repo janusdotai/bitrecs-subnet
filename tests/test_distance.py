@@ -25,13 +25,13 @@ from bitrecs.utils.misc import ttl_cache
 from bitrecs.utils.distance import (
     ColorScheme,    
     display_rec_matrix,
-    display_recommender_presenter,
-    select_most_similar_bitrecs_safe,    
+    display_rec_matrix_numpy,
+    select_most_similar_bitrecs_safe,
     select_most_similar_sets,
-    calculate_jaccard_distance, 
-    select_most_similar_bitrecs, 
-    select_most_similar_bitrecs_threshold, 
-    select_most_similar_bitrecs_threshold2    
+    calculate_jaccard_distance,
+    select_most_similar_bitrecs,
+    select_most_similar_bitrecs_threshold,
+    select_most_similar_bitrecs_threshold2,        
 )
 
 from dotenv import load_dotenv
@@ -554,6 +554,10 @@ def test_local_llm_base_config_jaccard():
     
     matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
+
+    npmatrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar)
+    print(npmatrix)
+
 
 
 def test_local_llm_raw_1k_jaccard():
@@ -1391,10 +1395,7 @@ def test_local_llm_bitrecs_protocol_with_randos():
             skus = [sku["sku"] for sku in c.results]
             print(f"Candidate {c.miner_uid} - {c.models_used} - SKUs: {skus}")
 
-
-    # display_report = display_recommender_presenter(sku, most_similar_sets)
-    # print(display_report)
-        
+    
 
 
 def results_to_json(results: List) -> List[str]:

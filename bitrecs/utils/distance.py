@@ -549,46 +549,262 @@ def display_rec_matrix_html(
 
 
 
-def display_recommender_presenter(original_sku: str, recs: List[Set[str]]) -> str:
-    result = f"Target SKU: \033[32m {original_sku} \033[0m\n"
-    #target_product_name = product_name_by_sku_trimmed(original_sku, 200)
-
-    def lookup_product_name(sku: str) -> str:
-        # Placeholder for actual product name lookup logic
-        return secrets.token_hex(16)
-        #return sku
-
-    target_product_name = original_sku
-    if not target_product_name:
-        raise ValueError("Target product name is empty")    
-
-    name = original_sku    
-    result += f"Query Product:\033[32m{target_product_name} \033[0m\n"
-    result += "------------------------------------------------------------\n"    
-    # Track matches with simple counter
-    matches = {}  # name -> count    
-    # First pass - count matches
-    for rec_set in recs:
-        for rec in rec_set:
-            #name = lookup_product_name(rec, 90)
-            matches[name] = matches.get(name, 0) + 1
+def display_rec_matrix_numpy(
+    rec_sets: List[Set[str]], 
+    models_used: List[str], 
+    highlight_indices: List[int] = None,
+    color_scheme: ColorScheme = ColorScheme.VIRIDIS
+) -> str:
+    """
+    Display recommendation sets as a distance matrix
     
-    # Second pass - output with emphasis on matches
-    seen = set()
-    for rec_set in recs:
-        for rec in rec_set:
-            #name = product_name_by_sku_trimmed(rec, 90)
-            if (rec, name) in seen:
-                continue
+    Args:
+        rec_sets: List of recommendation sets (each set contains SKUs)
+        models_used: List of model names corresponding to each rec_set
+        highlight_indices: Indices to highlight in the matrix
+        color_scheme: Color scheme for output formatting
+        
+    Returns:
+        Formatted string representation of the distance matrix
+    """
+    try:
+        import numpy as np
+    except ImportError:
+        # Fallback to optimized version if NumPy not available
+        return display_rec_matrix(rec_sets, models_used, highlight_indices, color_scheme)
+    
+    n = len(rec_sets)
+    if n == 0:
+        return "No recommendation sets provided"
+    
+    if len(models_used) != n:
+        return f"Error: rec_sets length ({n}) != models_used length ({len(models_used)})"
+    
+    colors = ColorPalette.SCHEMES[color_scheme]
+    highlight_set = set(highlight_indices) if highlight_indices else set()
+    
+    # Convert sets to binary matrices for vectorized operations
+    all_skus = sorted(set().union(*rec_sets))
+    if not all_skus:
+        return "No SKUs found in recommendation sets"
+    
+    sku_to_idx = {sku: i for i, sku in enumerate(all_skus)}
+    
+    # Create binary matrix: rows = sets, cols = SKUs
+    binary_matrix = np.zeros((n, len(all_skus)), dtype=bool)
+    for i, rec_set in enumerate(rec_sets):
+        for sku in rec_set:
+            if sku in sku_to_idx:  # Safety check
+                binary_matrix[i, sku_to_idx[sku]] = True
+    
+    # Vectorized Jaccard distance calculation
+    # intersection[i,j] = number of SKUs in both set i and set j
+    intersection = np.dot(binary_matrix, binary_matrix.T)
+    
+    # union[i,j] = number of SKUs in either set i or set j
+    set_sizes = binary_matrix.sum(axis=1)
+    union = set_sizes[:, None] + set_sizes[None, :] - intersection
+    
+    # Calculate Jaccard similarity, avoiding division by zero
+    jaccard_sim = np.where(union > 0, intersection / union, 0)
+    distance_matrix = 1 - jaccard_sim
+    
+    # Initialize output
+    output = []
+    output.append(f"\nDistance Matrix ({color_scheme.value}) - {n} sets")
+    output.append(f"Total unique SKUs: {len(all_skus)}")
+    output.append("")
+    
+    # Generate header
+    header_parts = ["       "]
+    for j in range(n):
+        col_num = f"{j:7d}"
+        if j in highlight_set:
+            header_parts.append(f"{colors['highlight']}{col_num}\033[0m")
+        else:
+            header_parts.append(col_num)
+    output.append("".join(header_parts))
+    
+    # Helper function for color coding
+    def get_distance_color(distance: float, is_highlighted: bool) -> str:
+        if is_highlighted:
+            return colors['highlight']
+        elif distance <= 0.5:
+            return colors['strong']
+        elif distance <= 0.7:
+            return colors['medium']
+        elif distance <= 0.9:
+            return colors['weak']
+        else:
+            return colors['minimal']
+    
+    # Generate matrix rows and collect match information
+    match_info = []
+    for i in range(n):
+        row_parts = []
+        
+        # Row header with highlighting
+        if i in highlight_set:
+            row_parts.append(f"{colors['highlight']}{i:4d}  \033[0m")
+        else:
+            row_parts.append(f"{i:4d}  ")
+        
+        # Row cells (lower triangular matrix)
+        for j in range(n):
+            if j < i:
+                distance = distance_matrix[i, j]
+                cell = f"{distance:7.3f}"
                 
-            seen.add((rec, name))
-            count = matches[name]
-            if count > 1:
-                # Double match - bright green
-                result += f"\033[1;32m{rec} - {name} (!)\033[0m\n"
-            elif count == 1:
-                # Single appearance - normal
-                result += f"{rec} - {name}\n"
+                # Collect matches (distance < 0.91 means some similarity)
+                if distance < 0.91:
+                    match_info.append((i, j, distance, models_used[i], models_used[j]))
+                
+                # Apply color coding
+                if distance < 1.0:  # Only color if there's any similarity
+                    is_highlighted = i in highlight_set and j in highlight_set
+                    color = get_distance_color(distance, is_highlighted)
+                    cell = f"{color}{cell}\033[0m"
+                
+                row_parts.append(cell)
+            else:
+                row_parts.append("      -")  # Upper triangle and diagonal
+        
+        output.append("".join(row_parts))
+    
+    # Add spacing
+    output.append("")
+    
+    # Process and display matches
+    if match_info:
+        output.append("-" * 80)
+        output.append("MODEL SIMILARITY ANALYSIS")
+        output.append("-" * 80)
+        
+        # Sort by similarity (descending)
+        match_info.sort(key=lambda x: (1 - x[2]), reverse=True)
+        
+        # Group matches by similarity level
+        high_sim = []  # > 0.3 similarity (< 0.7 distance)
+        med_sim = []   # 0.1-0.3 similarity (0.7-0.9 distance)
+        low_sim = []   # < 0.1 similarity (> 0.9 distance)
+        
+        for i, j, dist, model1, model2 in match_info:
+            similarity = 1 - dist
+            match_data = (i, j, dist, similarity, model1, model2)
+            
+            if similarity >= 0.3:
+                high_sim.append(match_data)
+            elif similarity >= 0.1:
+                med_sim.append(match_data)
+            else:
+                low_sim.append(match_data)
+        
+        # Display high similarity matches
+        if high_sim:
+            output.append(f"\n{colors['strong']}HIGH SIMILARITY (>30%){colors['strong']}")
+            for i, j, dist, sim, model1, model2 in high_sim:
+                output.append(f"{colors['strong']}Models {i} ↔ {j}: {sim:.1%} similarity (distance: {dist:.3f})\033[0m")
+                output.append(f"  • {model1}")
+                output.append(f"  • {model2}")
+                
+                # Calculate set details
+                intersection_size = int(intersection[i, j])
+                union_size = int(union[i, j])
+                set1_size = len(rec_sets[i])
+                set2_size = len(rec_sets[j])
+                
+                output.append(f"  • Shared SKUs: {intersection_size}/{union_size} total")
+                output.append(f"  • Set sizes: {set1_size} vs {set2_size}")
+                
+                # Check for random models
+                if "random" in model1.lower() or "random" in model2.lower():
+                    output.append(f"  {colors['highlight']}⚠️  WARNING: High similarity with random set!{colors['highlight']}")
+                
+                output.append("")
+        
+        # Display medium similarity matches
+        if med_sim:
+            output.append(f"\n{colors['medium']}MEDIUM SIMILARITY (10-30%){colors['medium']}")
+            for i, j, dist, sim, model1, model2 in med_sim[:5]:  # Limit to top 5
+                output.append(f"{colors['medium']}Models {i} ↔ {j}: {sim:.1%} similarity\033[0m")
+                output.append(f"  • {model1} vs {model2}")
+            
+            if len(med_sim) > 5:
+                output.append(f"  ... and {len(med_sim) - 5} more medium similarity pairs")
+            output.append("")
+        
+        # Display low similarity summary
+        if low_sim:
+            output.append(f"\n{colors['weak']}LOW SIMILARITY (<10%): {len(low_sim)} pairs{colors['weak']}")
+            
+            # Show only notable low similarity cases
+            random_vs_real = [m for m in low_sim if "random" in m[4].lower() or "random" in m[5].lower()]
+            if random_vs_real:
+                output.append(f"  • Random vs Real models: {len(random_vs_real)} pairs (expected)")
+    
+    else:
+        output.append("No similar recommendation sets found (all distances >= 0.91)")
+    
+    # Add statistics summary
+    output.append("")
+    output.append("-" * 80)
+    output.append("STATISTICS SUMMARY")
+    output.append("-" * 80)
+    
+    # Calculate overall statistics
+    all_distances = []
+    for i in range(n):
+        for j in range(i + 1, n):
+            all_distances.append(distance_matrix[i, j])
+    
+    if all_distances:
+        avg_distance = np.mean(all_distances)
+        min_distance = np.min(all_distances)
+        max_distance = np.max(all_distances)
+        std_distance = np.std(all_distances)
+        
+        output.append(f"Average distance: {avg_distance:.3f}")
+        output.append(f"Min distance: {min_distance:.3f} (most similar)")
+        output.append(f"Max distance: {max_distance:.3f} (least similar)")
+        output.append(f"Standard deviation: {std_distance:.3f}")
+        
+        # Categorize distance distribution
+        high_sim_count = np.sum(np.array(all_distances) < 0.7)
+        med_sim_count = np.sum((np.array(all_distances) >= 0.7) & (np.array(all_distances) < 0.9))
+        low_sim_count = np.sum(np.array(all_distances) >= 0.9)
+        
+        output.append(f"\nDistance distribution:")
+        output.append(f"  High similarity (<0.7): {high_sim_count} pairs")
+        output.append(f"  Medium similarity (0.7-0.9): {med_sim_count} pairs")
+        output.append(f"  Low similarity (≥0.9): {low_sim_count} pairs")
+    
+    # Add interpretation guide
+    output.append("")
+    output.append("-" * 80)
+    output.append("INTERPRETATION GUIDE")
+    output.append("-" * 80)
+    output.append("Distance = 0.0: Identical recommendation sets")
+    output.append("Distance < 0.5: Very similar recommendations")
+    output.append("Distance < 0.7: Moderately similar recommendations")
+    output.append("Distance < 0.9: Some overlap in recommendations")
+    output.append("Distance ≥ 0.9: Very different recommendations")
+    output.append("")
+    output.append("Expected behavior:")
+    output.append("• Similar models should have low distances")
+    output.append("• Random sets should have high distances vs real models")
+    output.append("• Diverse model ensemble should show varied distances")
+    
+    # Add color legend
+    output.append("")
+    output.append(f"Color Legend ({color_scheme.value}):")
+    output.append(f"{colors['highlight']}■ Highlighted\033[0m: Selected rows/columns")
+    output.append(f"{colors['strong']}■ Strong (≤0.5)\033[0m "
+                  f"{colors['medium']}■ Medium (≤0.7)\033[0m "
+                  f"{colors['weak']}■ Weak (≤0.9)\033[0m "
+                  f"{colors['minimal']}■ Minimal (>0.9)\033[0m")
+    
+    output.append("=" * 80)
+    
+    return "\n".join(output)
+    
 
-    result += "\n"
-    return result

@@ -42,7 +42,11 @@ from bitrecs.utils import constants as CONST
 from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
-from bitrecs.utils.distance import display_rec_matrix, rec_list_to_set, select_most_similar_bitrecs_safe
+from bitrecs.utils.distance import (
+    display_rec_matrix, 
+    rec_list_to_set, 
+    select_most_similar_bitrecs_safe
+)
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    

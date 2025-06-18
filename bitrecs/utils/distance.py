@@ -546,7 +546,7 @@ def display_rec_matrix_numpy(
     
     # Initialize output
     output = []
-    output.append(f"\nDistance Matrix ({color_scheme.value}) - {n} sets")
+    output.append(f"\nDistance Matrix: {n} sets")
     output.append(f"Total unique SKUs: {len(all_skus)}")
     output.append("")
     

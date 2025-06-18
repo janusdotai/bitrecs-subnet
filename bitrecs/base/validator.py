@@ -222,8 +222,10 @@ class BaseValidatorNeuron(BaseNeuron):
             # Calculate 33% of requests, rounded down
             suggested = max(2, min(5, num_requests // 3)) #5 max
             return suggested
-
-        print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")    
+        
+        if self.config.logging.trace:
+            print(f"Starting analyze_similar_requests with step: {self.step} and num_recs: {num_recs}")
+        
         st = time.perf_counter()
         try:
             requests = [r for r in requests if r.is_success]
@@ -259,7 +261,7 @@ class BaseValidatorNeuron(BaseNeuron):
                 bt.logging.warning(f"\033[33m No similar recs found in this round step: {self.step} \033[0m")
                 return
             for sim in most_similar:
-                bt.logging.info(f"Similar requests:\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m  - batch: {sim.site_key}")            
+                bt.logging.info(f"\033[32m Miner {sim.miner_uid} {sim.models_used}\033[0m - batch: {sim.site_key}")
 
             if self.config.logging.trace:
                 most_similar_indices = [valid_requests.index(req) for req in most_similar]
@@ -268,7 +270,7 @@ class BaseValidatorNeuron(BaseNeuron):
 
             et = time.perf_counter()
             diff = et - st
-            bt.logging.info(f"Time taken to analyze similar bitrecs: {diff:.2f} seconds")
+            bt.logging.info(f"Time taken to analyze similar bitrecs: \033[33m{diff:.2f}\033[0m seconds")
             return most_similar
         
         except Exception as e:            

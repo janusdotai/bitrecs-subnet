@@ -45,7 +45,7 @@ from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.distance import (
     display_rec_matrix, 
     rec_list_to_set, 
-    select_most_similar_bitrecs_safe
+    select_most_similar_bitrecs
 )
 from bitrecs.validator.reward import get_rewards
 from bitrecs.validator.rules import validate_br_request
@@ -254,7 +254,7 @@ class BaseValidatorNeuron(BaseNeuron):
             
             top_n = await get_dynamic_top_n(len(valid_requests))
             bt.logging.info(f"\033[1;32m Top {top_n} of {len(valid_requests)}/{len(requests)} (valid/total) bitrecs \033[0m")
-            most_similar = select_most_similar_bitrecs_safe(valid_requests, top_n)
+            most_similar = select_most_similar_bitrecs(valid_requests, top_n)
             if not most_similar:
                 bt.logging.warning(f"\033[33m No similar recs found in this round step: {self.step} \033[0m")
                 return

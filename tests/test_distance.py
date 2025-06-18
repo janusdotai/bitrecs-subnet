@@ -20,20 +20,18 @@ from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.validator.reward import validate_result_schema
-
 from bitrecs.utils.misc import ttl_cache
-from bitrecs.utils.distance import (
-    ColorScheme,    
+from bitrecs.utils.distance import (        
     display_rec_matrix,
     display_rec_matrix_numpy,
-    select_most_similar_bitrecs_safe,
+    select_most_similar_bitrecs,
     select_most_similar_sets,
     calculate_jaccard_distance,
     select_most_similar_bitrecs,
     select_most_similar_bitrecs_threshold,
     select_most_similar_bitrecs_threshold2,        
 )
-
+from bitrecs.utils.color import ColorScheme
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -555,8 +553,11 @@ def test_local_llm_base_config_jaccard():
     matrix = display_rec_matrix(rec_sets, models_used, most_similar)
     print(matrix)
 
-    npmatrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar)
-    print(npmatrix)
+    for s in ColorScheme:
+        print("----------------------------------------------------------------------------")
+        print(f"{s.name}: {s.value}")
+        npmatrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar, ColorScheme[s.name])
+        print(npmatrix)        
 
 
 
@@ -1357,7 +1358,7 @@ def test_local_llm_bitrecs_protocol_with_randos():
     print(f"Total Invalid schema count: {invalid_count}")
     #assert invalid_count == 0, "Invalid schema for results"
 
-    most_similar = select_most_similar_bitrecs_safe(rec_sets, top_n=config.top_n)
+    most_similar = select_most_similar_bitrecs(rec_sets, top_n=config.top_n)
     
     assert most_similar is not None
     assert len(most_similar) == config.top_n

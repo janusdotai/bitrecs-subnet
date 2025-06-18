@@ -1,9 +1,8 @@
 import json
-import secrets
 import json_repair
-from enum import Enum
 from typing import List, Optional, Set
 from bitrecs.protocol import BitrecsRequest
+from bitrecs.utils.color import ColorScheme, ColorPalette
 
 
 def calculate_jaccard_distance(set1: Set, set2: Set) -> float:  
@@ -86,24 +85,6 @@ def select_most_similar_sets(rec_sets: List[Set], top_n: int = 2) -> List[int]:
 
 
 def select_most_similar_bitrecs(rec_sets: List[BitrecsRequest], top_n: int = 2) -> List[BitrecsRequest]:
-    """
-    Select most similar BitrecsRequest objects based on their SKU recommendations.
-    
-    Args:
-        rec_sets: List of BitrecsRequest objects
-        top_n: Number of similar sets to return
-    Returns:
-        List of most similar BitrecsRequest objects
-    """
-    return select_most_similar_bitrecs_safe(rec_sets, top_n)
-    # if len(rec_sets) < 2:
-    #     return rec_sets
-    # sku_sets = [set(r['sku'] for r in req.results) for req in rec_sets]
-    # sim = select_most_similar_sets(sku_sets, top_n)    
-    # return [rec_sets[i] for i in sim]
-
-
-def select_most_similar_bitrecs_safe(rec_sets: List[BitrecsRequest], top_n: int = 2) -> List[BitrecsRequest]:
     """
     Select most similar BitrecsRequest objects based on their SKU recommendations.
     
@@ -254,50 +235,6 @@ def select_most_similar_bitrecs_threshold2(
             result.append(rec_sets[j])
             
     return result if result else None
-
-
-
-
-
-class ColorScheme(Enum):
-    VIRIDIS = "viridis"
-    ROCKET = "rocket"
-    MAKOTO = "makoto"
-    SPECTRAL = "spectral"
-
-class ColorPalette:
-    """Color schemes for matrix visualization"""
-    SCHEMES = {
-        ColorScheme.VIRIDIS: {
-            "strong": "\033[38;5;114m",  # Lime Green
-            "medium": "\033[38;5;37m",     # Teal
-            "weak": "\033[38;5;31m",   # Deep Blue
-            "minimal": "\033[38;5;55m",   # Dark Purple 
-            "highlight": "\033[38;5;227m" # Bright Yellow
-        },
-        ColorScheme.ROCKET: {
-            "strong": "\033[38;5;89m",    # Deep Plum
-            "medium": "\033[38;5;161m",   # Reddish Purple
-            "weak": "\033[38;5;196m",     # Warm Red
-            "minimal": "\033[38;5;209m",   # Coral
-            "highlight": "\033[38;5;223m"  # Light Peach
-        },
-        ColorScheme.MAKOTO: {
-            "strong": "\033[38;5;232m",   # Near Black
-            "medium": "\033[38;5;24m",    # Dark Blue
-            "weak": "\033[38;5;67m",      # Steel Blue
-            "minimal": "\033[38;5;117m",  # Light Sky Blue
-            "highlight": "\033[38;5;195m" # Pale Blue
-        },
-        ColorScheme.SPECTRAL: {
-            "strong": "\033[38;5;160m",   # Red
-            "medium": "\033[38;5;215m",   # Orange
-            "weak": "\033[38;5;229m",     # Soft Yellow
-            "minimal": "\033[38;5;151m",  # Mint Green
-            "highlight": "\033[38;5;32m"  # Cool Blue
-        }
-    }
-
 
 
 
@@ -547,8 +484,6 @@ def display_rec_matrix_html(
 
 
 
-
-
 def display_rec_matrix_numpy(
     rec_sets: List[Set[str]], 
     models_used: List[str], 
@@ -789,14 +724,14 @@ def display_rec_matrix_numpy(
     output.append("Distance < 0.9: Some overlap in recommendations")
     output.append("Distance ≥ 0.9: Very different recommendations")
     output.append("")
-    output.append("Expected behavior:")
-    output.append("• Similar models should have low distances")
-    output.append("• Random sets should have high distances vs real models")
-    output.append("• Diverse model ensemble should show varied distances")
+    # output.append("Expected behavior:")
+    # output.append("• Similar models should have low distances")
+    # output.append("• Random sets should have high distances vs real models")
+    # output.append("• Diverse model ensemble should show varied distances")
     
     # Add color legend
     output.append("")
-    output.append(f"Color Legend ({color_scheme.value}):")
+    #output.append(f"Color Legend ({color_scheme.value}):")
     output.append(f"{colors['highlight']}■ Highlighted\033[0m: Selected rows/columns")
     output.append(f"{colors['strong']}■ Strong (≤0.5)\033[0m "
                   f"{colors['medium']}■ Medium (≤0.7)\033[0m "
@@ -807,4 +742,7 @@ def display_rec_matrix_numpy(
     
     return "\n".join(output)
     
+
+
+
 

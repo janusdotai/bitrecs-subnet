@@ -10,13 +10,13 @@ from bitrecs.commerce.product import CatalogProvider, Product, ProductFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.protocol import BitrecsRequest
-from bitrecs.utils.distance import (
-    ColorScheme, 
+from bitrecs.utils.distance import (    
     calculate_jaccard_distance, 
     display_rec_matrix, 
     display_rec_matrix_html, 
-    select_most_similar_bitrecs_safe
+    select_most_similar_bitrecs
 )
+from bitrecs.utils.color import ColorScheme
 from bitrecs.utils.misc import ttl_cache
 from dataclasses import asdict
 from datetime import datetime
@@ -527,7 +527,7 @@ def test_wandb_cluster_logging():
 
     st = time.perf_counter()
     valid_recs = [set([r['sku'] for r in rec.results]) for rec in rec_requests]
-    most_similar = select_most_similar_bitrecs_safe(rec_requests, top_n=config.top_n)
+    most_similar = select_most_similar_bitrecs(rec_requests, top_n=config.top_n)
     if not most_similar:
         print("No similar clusters found.")
         return    

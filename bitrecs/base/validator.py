@@ -43,7 +43,7 @@ from bitrecs.utils.config import add_validator_args
 from bitrecs.api.api_server import ApiServer
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.utils.distance import (
-    display_rec_matrix, 
+    display_rec_matrix_numpy,
     rec_list_to_set, 
     select_most_similar_bitrecs
 )
@@ -261,7 +261,7 @@ class BaseValidatorNeuron(BaseNeuron):
             for sim in most_similar:
                 bt.logging.info(f"Similar requests:\033[32mMiner {sim.miner_uid} {sim.models_used}\033[0m  - batch: {sim.site_key}")
             most_similar_indices = [valid_requests.index(req) for req in most_similar]
-            matrix = display_rec_matrix(valid_recs, models_used, highlight_indices=most_similar_indices)
+            matrix = display_rec_matrix_numpy(valid_recs, models_used, highlight_indices=most_similar_indices)            
             bt.logging.info(matrix)
             et = time.perf_counter()
             diff = et - st

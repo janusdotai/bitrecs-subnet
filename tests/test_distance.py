@@ -550,14 +550,17 @@ def test_local_llm_base_config_jaccard():
     summary = recommender_presenter(product.sku, [rec_sets[idx] for idx in most_similar])
     print(summary)
     
-    matrix = display_rec_matrix(rec_sets, models_used, most_similar)
+    # matrix = display_rec_matrix(rec_sets, models_used, most_similar)
+    # print(matrix)
+
+    matrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar)
     print(matrix)
 
-    for s in ColorScheme:
-        print("----------------------------------------------------------------------------")
-        print(f"{s.name}: {s.value}")
-        npmatrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar, ColorScheme[s.name])
-        print(npmatrix)        
+    # for s in ColorScheme:
+    #     print("----------------------------------------------------------------------------")
+    #     print(f"{s.name}: {s.value}")
+    #     npmatrix = display_rec_matrix_numpy(rec_sets, models_used, most_similar, ColorScheme[s.name])
+    #     print(npmatrix)        
 
 
 

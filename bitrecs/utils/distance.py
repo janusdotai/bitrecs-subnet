@@ -609,7 +609,37 @@ def display_rec_matrix_numpy(
     # Add spacing
     output.append("")
     
-    # Process and display matches
+    # *** ADD SIMPLE MODEL MATCHES SECTION (like display_rec_matrix) ***
+    if match_info:
+        output.append("-" * 60)
+        output.append("\nModel Matches:")
+        output.append("-" * 60)
+        
+        # Sort by similarity (highest first) and display like the original
+        for i, j, dist, model1, model2 in sorted(match_info, key=lambda x: (1 - x[2]), reverse=True):
+            similarity = 1 - dist
+            if similarity >= 0.05:
+                # Color coding based on similarity level
+                if similarity >= 0.5:
+                    color = colors['strong']
+                elif similarity >= 0.3:
+                    color = colors['medium']
+                elif similarity >= 0.1:
+                    color = colors['weak']
+                else:
+                    color = colors['minimal']
+                
+                output.append(f"{color}Similarity: {similarity:.4f}\033[0m")
+                output.append(f"  Model {i}: {model1}")
+                output.append(f"  Model {j}: {model2}")
+                output.append(f"  Distance: {dist:.4f}")
+                output.append("-" * 40)
+                # if "random" in model1.lower() or "random" in model2.lower():
+                #     output.append(f"\033[33m Warning: Includes random set!\033[0m")
+        
+        output.append("")  # Extra spacing before detailed analysis
+    
+    # Process and display detailed matches analysis
     if match_info:
         output.append("-" * 80)
         output.append("MODEL SIMILARITY ANALYSIS")
@@ -636,7 +666,7 @@ def display_rec_matrix_numpy(
         
         # Display high similarity matches
         if high_sim:
-            output.append(f"\n{colors['strong']}HIGH SIMILARITY (>30%){colors['strong']}")
+            output.append(f"\n{colors['strong']}HIGH SIMILARITY (>30%)\033[0m")
             for i, j, dist, sim, model1, model2 in high_sim:
                 output.append(f"{colors['strong']}Models {i} ↔ {j}: {sim:.1%} similarity (distance: {dist:.3f})\033[0m")
                 output.append(f"  • {model1}")
@@ -653,13 +683,13 @@ def display_rec_matrix_numpy(
                 
                 # Check for random models
                 if "random" in model1.lower() or "random" in model2.lower():
-                    output.append(f"  {colors['highlight']}⚠️  WARNING: High similarity with random set!{colors['highlight']}")
+                    output.append(f"  {colors['highlight']}⚠️  WARNING: High similarity with random set!\033[0m")
                 
                 output.append("")
         
         # Display medium similarity matches
         if med_sim:
-            output.append(f"\n{colors['medium']}MEDIUM SIMILARITY (10-30%){colors['medium']}")
+            output.append(f"\n{colors['medium']}MEDIUM SIMILARITY (10-30%)\033[0m")
             for i, j, dist, sim, model1, model2 in med_sim[:5]:  # Limit to top 5
                 output.append(f"{colors['medium']}Models {i} ↔ {j}: {sim:.1%} similarity\033[0m")
                 output.append(f"  • {model1} vs {model2}")
@@ -670,7 +700,7 @@ def display_rec_matrix_numpy(
         
         # Display low similarity summary
         if low_sim:
-            output.append(f"\n{colors['weak']}LOW SIMILARITY (<10%): {len(low_sim)} pairs{colors['weak']}")
+            output.append(f"\n{colors['weak']}LOW SIMILARITY (<10%): {len(low_sim)} pairs\033[0m")
             
             # Show only notable low similarity cases
             random_vs_real = [m for m in low_sim if "random" in m[4].lower() or "random" in m[5].lower()]
@@ -741,7 +771,7 @@ def display_rec_matrix_numpy(
     output.append("=" * 80)
     
     return "\n".join(output)
-    
+
 
 
 

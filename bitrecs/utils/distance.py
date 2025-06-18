@@ -64,9 +64,9 @@ def select_most_similar_sets(rec_sets: List[Set], top_n: int = 2) -> List[int]:
     all_pairs.sort(reverse=True)
     
     # Debug info
-    print("\nTop similarity pairs:")
-    for sim, i, j in all_pairs[:5]:
-        print(f"Sets {i},{j}: similarity={sim:.3f} (distance={1-sim:.3f})")
+    # print("\nTop similarity pairs:")
+    # for sim, i, j in all_pairs[:5]:
+    #     print(f"Sets {i},{j}: similarity={sim:.3f} (distance={1-sim:.3f})")
     
     # Get indices from top pairs
     selected = set()

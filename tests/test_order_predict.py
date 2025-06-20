@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-DB_PATH = "/data/tests/store.sqlite"
+DB_PATH = "./tests/data/testdb/store.sqlite"
 MIN_ORDER_CLIP = 25.00
 
 
@@ -478,7 +478,7 @@ def get_sample_user_profile() -> UserProfile:
         if not rows:
             raise ValueError("No user profiles found in the database.")        
         profiles = [{"group_id": row[0], "count": row[1]} for row in rows]
-        assert len(profiles) == 4500
+        assert len(profiles) == 5606
         r = safe_random.choice(profiles)        
         sql = f"""select o.*, i.qty, i.sku, i.name, i.price from music_orders o 
                 left join music_order_items i on o.order_id = i.order_id
@@ -577,7 +577,7 @@ def get_simple_sku_stats(sku: str) -> dict:
 def test_load_products_from_db():
     products = load_products_from_db(DB_PATH)
     print(f"Loaded {len(products)} products from the database.")
-    assert len(products) == 22567, "Expected 22410 products to be loaded from the database."
+    assert len(products) == 22664, "Expected 22680 products to be loaded from the database."
     for product in products:
         assert isinstance(product, Product), "Loaded item is not a Product instance."
         assert product.sku is not None, "Product SKU should not be None."
@@ -598,8 +598,9 @@ def test_sample_user_profile():
 def test_sample_profile_get_similar_orders():
     num_recs = 5
     profile = get_sample_user_profile()    
-    products = products_music()[:5000]
-    print(f"Loaded {len(products)} products from the database.")
+    #$products = products_music()[:5000]
+    products = products_music()
+    print(f"Loaded {len(products)} products from the database.")#
     print(f"User profile: {profile.id} with {len(profile.orders)} orders and {len(profile.cart)} items in cart.")
 
     context = json.dumps([asdict(products) for products in products], separators=(',', ':'))

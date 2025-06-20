@@ -168,15 +168,15 @@ class PromptFactory:
 
         prompt_length = len(prompt)
         bt.logging.info(f"LLM QUERY Prompt length: {prompt_length}")
-        token_count = PromptFactory.get_token_count(prompt)
-        bt.logging.info(f"LLM QUERY Prompt Token count: {token_count}")
-
-        if self.debug:            
+        
+        if self.debug:
+            token_count = PromptFactory.get_token_count(prompt)
+            bt.logging.info(f"LLM QUERY Prompt Token count: {token_count}")
             bt.logging.debug(f"Persona: {self.persona}")
             bt.logging.debug(f"Season {season}")
             bt.logging.debug(f"Values: {', '.join(persona_data['priorities'])}")
             bt.logging.debug(f"Prompt: {prompt}")
-            print(prompt)
+            #print(prompt)
 
         return prompt
     

@@ -275,11 +275,12 @@ class ApiServer:
 
             await self.verify_request2(request, x_signature, x_timestamp)
 
-            tc = PromptFactory.get_token_count(request.context)
-            if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
-                bt.logging.error(f"API context too large: {tc} tokens")
-                return JSONResponse(status_code=400,
-                                    content={"detail": "error - context too large", "status_code": 400})
+            if len(request.context) > 100_000:
+                tc = PromptFactory.get_token_count(request.context)
+                if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
+                    bt.logging.error(f"API context too large: {tc} tokens")
+                    return JSONResponse(status_code=400,
+                                        content={"detail": "error - context too large", "status_code": 400})
 
             store_catalog = ProductFactory.try_parse_context_strict(request.context)
             catalog_size = len(store_catalog)
@@ -289,24 +290,10 @@ class ApiServer:
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - invalid catalog - size", "status_code": 400})
             
-            if 1==2:
-
-                dupes = ProductFactory.get_dupe_count_list(store_catalog)
-                if dupes == -1:
-                    bt.logging.error(f"API invalid catalog")
-                    return JSONResponse(status_code=400,
-                                        content={"detail": "error - invalid catalog - format", "status_code": 400})
-                
-                if dupes > catalog_size * CONST.CATALOG_DUPE_THRESHOLD:
-                    bt.logging.error(f"API Too many duplicates in catalog: {dupes}")                
-                    return JSONResponse(status_code=400,
-                                        content={"detail": "error - dupe threshold reached", "status_code": 400})
-            
             request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
-
-            st = time.perf_counter()
+            sn_t = time.perf_counter()
             response = await self.forward_fn(request)
-            subnet_time = time.perf_counter() - st
+            subnet_time = time.perf_counter() - sn_t
             response_text = "Bitrecs Subnet {} Took {:.2f} seconds to process this request".format(self.network, subnet_time)
             bt.logging.trace(response_text)
 
@@ -315,26 +302,26 @@ class ApiServer:
                 return JSONResponse(status_code=500,
                                     content={"detail": "error - forward", "status_code": 500})
 
-            if 1==2:
-                #TODO: reward is not 100% strict as we tolerate llms returning good enough json
-                #however our standard to return to clients must be strict and fail gracefully
-                final_recs = [None] * len(response.results)  # Pre-allocate list with same length
-                for i, idx in enumerate(response.results):
-                    try:
-                        repaired = repair_json(idx)
-                        rec = json.loads(repaired)
-                        standardized = json.dumps(rec)
-                        final_recs[i] = json.loads(standardized)
-                    except Exception as e:
-                        bt.logging.error(f"Failed to standardize result at index {i}: {idx}, error: {e}")
-                        final_recs[i] = None  # Mark failed entries as None
+            # if 1==2:
+            #     #TODO: reward is not 100% strict as we tolerate llms returning good enough json
+            #     #however our standard to return to clients must be strict and fail gracefully
+            #     final_recs = [None] * len(response.results)  # Pre-allocate list with same length
+            #     for i, idx in enumerate(response.results):
+            #         try:
+            #             repaired = repair_json(idx)
+            #             rec = json.loads(repaired)
+            #             standardized = json.dumps(rec)
+            #             final_recs[i] = json.loads(standardized)
+            #         except Exception as e:
+            #             bt.logging.error(f"Failed to standardize result at index {i}: {idx}, error: {e}")
+            #             final_recs[i] = None  # Mark failed entries as None
 
-                # Remove any None entries while preserving order
-                final_recs = [r for r in final_recs if r is not None]
+            #     # Remove any None entries while preserving order
+            #     final_recs = [r for r in final_recs if r is not None]
 
             #final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]
+            
             final_recs = [json.loads(idx) for idx in response.results]
-
             response = {
                 "user": "", 
                 "original_query": response.query,
@@ -348,12 +335,10 @@ class ApiServer:
                 "miner_uid": response.miner_uid,
                 "miner_hotkey": response.miner_hotkey,
                 "reasoning": f"Bitrecs AI - {self.network}"
-            }            
-
+            }
             et_a = int(time.time())
             total_duration = et_a - st_a
             bt.logging.info("\033[1;32m Validator - Processed request in {:.2f} seconds \033[0m".format(total_duration))
-
             return JSONResponse(status_code=200, content=response)
         
         except HTTPException as h:

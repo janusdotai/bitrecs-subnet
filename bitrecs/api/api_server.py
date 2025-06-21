@@ -136,10 +136,10 @@ class ApiServer:
         bt.logging.info(f"\033[1;32m New Request Signature Verified\033[0m")
 
 
-    async def verify_request2(self, request: BitrecsRequest, x_signature: str, x_timestamp: str): 
+    async def verify_request_signature(self, request: BitrecsRequest, x_signature: str, x_timestamp: str): 
         timestamp = int(x_timestamp)
         current_time = int(time.time())
-        if current_time - timestamp > 300:  # 5 minutes
+        if current_time - timestamp > 300:
             bt.logging.error(f"\033[1;31m Expired Request!\033[0m")
             raise HTTPException(status_code=401, detail="Request expired")
 
@@ -273,7 +273,7 @@ class ApiServer:
         try:
             st_a = int(time.time())
 
-            await self.verify_request2(request, x_signature, x_timestamp)
+            await self.verify_request_signature(request, x_signature, x_timestamp)
 
             if len(request.context) > 100_000:
                 tc = PromptFactory.get_token_count(request.context)
@@ -358,7 +358,76 @@ class ApiServer:
             x_signature: str = Header(...),
             x_timestamp: str = Header(...)
     ):  
-        raise NotImplementedError("Mainnet API not implemented")
+        """
+            Main Bitrecs Handler - mainnet
+
+            Generate n recommendations for a given query and context.
+            Query is sent to random miners to generate a valid response in a reasonable time.            
+
+        """
+
+        try:
+            st_a = int(time.time())
+
+            await self.verify_request_signature(request, x_signature, x_timestamp)
+
+            if len(request.context) > 100_000:
+                tc = PromptFactory.get_token_count(request.context)
+                if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
+                    bt.logging.error(f"API context too large: {tc} tokens")
+                    return JSONResponse(status_code=400,
+                                        content={"detail": "error - context too large", "status_code": 400})
+
+            store_catalog = ProductFactory.try_parse_context_strict(request.context)
+            catalog_size = len(store_catalog)
+            bt.logging.trace(f"REQUEST CATALOG SIZE: {catalog_size}")
+            if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
+                bt.logging.error(f"API invalid catalog size")
+                return JSONResponse(status_code=400,
+                                    content={"detail": "error - invalid catalog - size", "status_code": 400})
+            
+            request.context = json.dumps([asdict(store_catalog) for store_catalog in store_catalog], separators=(',', ':'))
+            sn_t = time.perf_counter()
+            response = await self.forward_fn(request)
+            subnet_time = time.perf_counter() - sn_t
+            response_text = "Bitrecs Subnet {} Took {:.2f} seconds to process this request".format(self.network, subnet_time)
+            bt.logging.trace(response_text)
+
+            if len(response.results) == 0:
+                bt.logging.error(f"API forward_fn response has no results")
+                return JSONResponse(status_code=500,
+                                    content={"detail": "error - forward", "status_code": 500})
+         
+            #final_recs = [json.loads(idx.replace("'", '"')) for idx in response.results]            
+            final_recs = [json.loads(idx) for idx in response.results]
+            response = {
+                "user": "", 
+                "original_query": response.query,
+                "status_code": "200", #front end widgets expects this do not change
+                "status_text": "OK", #front end widgets expects this do not change
+                "response_text": response_text,
+                "created_at": response.created_at,
+                "results": final_recs,
+                "models_used": response.models_used,
+                "catalog_size": str(catalog_size),
+                "miner_uid": response.miner_uid,
+                "miner_hotkey": response.miner_hotkey,
+                "reasoning": f"Bitrecs AI - {self.network}"
+            }
+            et_a = int(time.time())
+            total_duration = et_a - st_a
+            bt.logging.info("\033[1;32m Validator - Processed request in {:.2f} seconds \033[0m".format(total_duration))
+            return JSONResponse(status_code=200, content=response)
+        
+        except HTTPException as h:
+            bt.logging.error(f"\033[31m HTTP ERROR API generate_product_rec_mainnet:\033[0m {h}")            
+            return JSONResponse(status_code=h.status_code,
+                                content={"detail": "error", "status_code": h.status_code})
+
+        except Exception as e:
+            bt.logging.error(f"\033[31m ERROR API generate_product_rec_mainnet:\033[0m {e}")            
+            return JSONResponse(status_code=500,
+                                content={"detail": "error", "status_code": 500})
 
 
     def start(self):

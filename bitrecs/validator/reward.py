@@ -213,15 +213,16 @@ def reward(
             bt.logging.error(f"Error in reward: dendrite_time not found in headers")
             return 0.0
         
-        # Adjust the rewards based on the actions
-        boost = calculate_miner_boost(response.miner_hotkey, actions)        
-        if boost > 0:
-            bt.logging.trace(f"\033[32m Miner {response.miner_uid} boost: {boost} \033[0m")
-            bt.logging.trace(f"\033[32m current: {score} \033[0m")
-            score = score + boost
-            bt.logging.trace(f"\033[32m after: {score} \033[0m")
-        else:
-            bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
+        if CONST.CONVERSION_SCORING_ENABLED: #Disabled during boostrapping phase of mainnet
+            # Adjust the rewards based on the actions
+            boost = calculate_miner_boost(response.miner_hotkey, actions)
+            if boost > 0:
+                bt.logging.trace(f"\033[32m Miner {response.miner_uid} boost: {boost} \033[0m")
+                bt.logging.trace(f"\033[32m current: {score} \033[0m")
+                score = score + boost
+                bt.logging.trace(f"\033[32m after: {score} \033[0m")
+            else:
+                bt.logging.trace(f"\033[33m Miner {response.miner_uid} boost: {boost} \033[0m")
 
         bt.logging.info(f"\033[1;32m Final {score} \033[0m")
         return score

@@ -65,4 +65,17 @@ class UserAction:
         end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=days_ago)
         return start_date, end_date
+    
+    
+    @staticmethod
+    def get_retro_range() -> tuple:
+        """
+        Get retroactive range for the actions to let merchants settle.
+        End date: 30 days ago from today
+        Start date: 60 days ago from today (30 days before end date)
+        """        
+        end_date = datetime.now(timezone.utc) - timedelta(days=30)
+        start_date = end_date - timedelta(days=30)
+        return start_date, end_date
+        
         

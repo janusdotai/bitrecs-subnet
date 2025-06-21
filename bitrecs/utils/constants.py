@@ -20,6 +20,7 @@ Constants:
     R2_SYNC_INTERVAL (int): Length of seconds between R2 syncs.
     RE_PRODUCT_NAME (Pattern): Regular expression to match valid product names.
     RE_REASON (Pattern): Regular expression to match valid reasons.
+    CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.
 
 """
 ROOT_DIR = Path(__file__).parent.parent
@@ -38,3 +39,4 @@ CATALOG_DUPE_THRESHOLD = 0.05
 R2_SYNC_INTERVAL = 3600
 RE_PRODUCT_NAME = re.compile(r"[^A-Za-z0-9 |-]")
 RE_REASON = re.compile(r"[^A-Za-z0-9 ]")
+CONVERSION_SCORING_ENABLED = False

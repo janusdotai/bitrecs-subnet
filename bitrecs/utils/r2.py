@@ -47,7 +47,7 @@ def create_secure_message(timestamp: int, report: ValidatorUploadRequest, nonce:
     return message.encode('utf-8'), nonce
 
 
-def get_r2_upload_url2(report: ValidatorUploadRequest, keypair: Keypair) -> str:    
+def get_r2_upload_url(report: ValidatorUploadRequest, keypair: Keypair) -> str:    
     request_url = f"{SERVICE_URL}/validator/upload"    
     timestamp = int(time.time())
     message, nonce = create_secure_message(timestamp, report)
@@ -91,7 +91,7 @@ def put_r2_upload(request: ValidatorUploadRequest, keypair: Keypair) -> bool:
     if not request or not keypair:
         return False    
     
-    signed_url = get_r2_upload_url2(request, keypair)    
+    signed_url = get_r2_upload_url(request, keypair)    
     if not is_valid_url(signed_url):        
         bt.logging.error("Failed to get signed URL")            
         return False    

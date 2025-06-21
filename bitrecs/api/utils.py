@@ -57,12 +57,7 @@ async def api_key_validator(self, request: Request, call_next) -> Response:
                             content={"detail": "Internal server error - key validator"})
 
 
-async def json_only_middleware(self, request: Request, call_next) -> Union[JSONResponse, Response]:    
-    # if request.headers.get("Content-Type") == "multipart/form-data":
-    #     return JSONResponse(
-    #         status_code=415,  # Unsupported Media Type
-    #         content={"detail": "Only JSON requests are allowed"}
-    #     )
+async def json_only_middleware(self, request: Request, call_next) -> Union[JSONResponse, Response]:
     if request.headers.get("Content-Type") != "application/json":
         return JSONResponse(
             status_code=415,  # Unsupported Media Type

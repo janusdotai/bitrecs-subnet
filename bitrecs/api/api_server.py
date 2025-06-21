@@ -382,7 +382,7 @@ class ApiServer:
             catalog_size = len(store_catalog)
             bt.logging.trace(f"REQUEST CATALOG SIZE: {catalog_size}")
             if catalog_size < CONST.MIN_CATALOG_SIZE or catalog_size > CONST.MAX_CATALOG_SIZE:
-                bt.logging.error(f"API invalid catalog size")
+                bt.logging.error(f"API invalid catalog size: {catalog_size} skus")
                 return JSONResponse(status_code=400,
                                     content={"detail": "error - invalid catalog - size", "status_code": 400})
             

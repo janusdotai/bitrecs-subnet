@@ -30,7 +30,7 @@ class Product:
         return asdict(self)
     
     def to_json(self) -> str:
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict(), separators=(',', ':'))
 
 
 class ProductFactory:
@@ -147,21 +147,15 @@ class ProductFactory:
                     
                 result.append(Product(sku=sku, name=name, price=price))
         except Exception as e:
-            bt.logging.error(f"try_parse_context3 Exception: {e}")
+            bt.logging.error(f"try_parse_context_strict Exception: {e}")
             return []        
         
         result.sort(key=operator.attrgetter('name'))
         return result
 
-
    
     @staticmethod
     def get_dupe_count(products: list[Product]) -> int:       
-        return ProductFactory.get_dupe_count_list(products)
-        
-        
-    @staticmethod
-    def get_dupe_count_list(products: list) -> int:        
         try:
             if not products or len(products) == 0:
                 return 0
@@ -172,12 +166,11 @@ class ProductFactory:
             )
             return sum(count - 1 for count in sku_counts.values() if count > 1)
         except AttributeError as a:
-            bt.logging.error(f"WARNING - get_dupe_count_list failed: {a}")
+            bt.logging.error(f"WARNING - get_dupe_count failed: {a}")
             return -1
         except Exception as e:
-            bt.logging.error(f"ERROR - get_dupe_count_list encountered an unexpected error: {e}")
-            return -1       
-    
+            bt.logging.error(f"ERROR - get_dupe_count encountered an unexpected error: {e}")
+            return -1    
 
 
     @staticmethod

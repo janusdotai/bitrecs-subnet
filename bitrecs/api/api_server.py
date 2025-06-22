@@ -1,10 +1,10 @@
 import os
 import json
 import time
-import bittensor as bt
 import hmac
 import hashlib
 import threading
+import bittensor as bt
 from dataclasses import asdict
 from typing import Callable
 from functools import partial
@@ -16,19 +16,20 @@ from bitrecs.utils import constants as CONST
 from bitrecs.commerce.product import ProductFactory
 from bitrecs.protocol import BitrecsRequest
 from bitrecs.api.api_core import filter_allowed_ips, limiter
-from bitrecs.api.utils import api_key_validator, get_proxy_public_key, json_only_middleware
+from bitrecs.api.utils import (
+    api_key_validator, get_proxy_public_key, 
+    json_only_middleware, parse_ip_whitelist
+)
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from cryptography.exceptions import InvalidSignature
 from uvicorn.config import Config
 from uvicorn.server import Server
 from dotenv import load_dotenv
-from json_repair import repair_json
 load_dotenv()
 
 ForwardFn = Callable[[BitrecsRequest], BitrecsRequest]
 
-SECRET_KEY = "change-me"
-PROXY_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
+SECRET_KEY = "change-me"  #used only for localnet
 
 
 class ApiServer:
@@ -40,10 +41,15 @@ class ApiServer:
         self.validator = validator
         self.forward_fn = forward_fn
         self.allowed_ips = ["127.0.0.1"]
-        self.bypass_whitelist = True
-
+        self.bypass_whitelist: bool = True
         self.app = FastAPI()
         self.app.state.limiter = limiter
+     
+        self.proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
+        if not self.proxy_url:
+            bt.logging.error(f"\033[1;31m ERROR - MISSING BITRECS_PROXY_URL \033[0m")
+            raise Exception("Missing BITRECS_PROXY_URL")
+        
         self.bitrecs_api_key = os.environ.get("BITRECS_API_KEY")
         if not self.bitrecs_api_key:
             bt.logging.error(f"\033[1;31m ERROR - MISSING BITRECS_API_KEY \033[0m")
@@ -88,13 +94,17 @@ class ApiServer:
             self.router.add_api_route("/rec", self.generate_product_rec_testnet, methods=["POST"])
         elif self.network == "mainnet":
             self.router.add_api_route("/rec", self.generate_product_rec_mainnet, methods=["POST"])
+            self.bypass_whitelist = False
+            self.allowed_ips = parse_ip_whitelist(os.environ.get("VALIDATOR_API_WHITELIST", ""))
+            if len(self.allowed_ips) == 0:
+                raise ValueError("No allowed IPs configured for mainnet API")
         else:
             raise ValueError(f"Unsupported network: {self.network}")
         self.app.include_router(self.router)
      
         try:
-            bt.logging.trace(f"\033[1;33mAPI warmup, please standby ...\033[0m")            
-            self.proxy_key : bytes = get_proxy_public_key(PROXY_URL)
+            bt.logging.trace(f"\033[1;33mAPI warmup, please standby ...\033[0m")
+            self.proxy_key : bytes = get_proxy_public_key(self.proxy_url)
             self.public_key = Ed25519PublicKey.from_public_bytes(self.proxy_key)
         except Exception as e:
             bt.logging.error(f"\033[1;31mERROR API could not get proxy public key:  {e} \033[0m")
@@ -104,7 +114,12 @@ class ApiServer:
         bt.logging.info(f"\033[1;32m API Server initialized on {self.network} \033[0m")
 
     
-    async def verify_request(self, request: BitrecsRequest, x_signature: str, x_timestamp: str):     
+    async def verify_request(self, request: BitrecsRequest, x_signature: str, x_timestamp: str):
+        timestamp = int(x_timestamp)
+        current_time = int(time.time())
+        if current_time - timestamp > 300:
+            raise HTTPException(status_code=401, detail="Request expired")
+        
         d = {
             'created_at': request.created_at,
             'user': request.user,
@@ -117,6 +132,7 @@ class ApiServer:
             'miner_uid': request.miner_uid,
             'miner_hotkey': request.miner_hotkey
         }
+
         body_str = json.dumps(d, sort_keys=True)
         string_to_sign = f"{x_timestamp}.{body_str}"
         expected_signature = hmac.new(
@@ -127,12 +143,7 @@ class ApiServer:
         
         if not hmac.compare_digest(x_signature, expected_signature):
             raise HTTPException(status_code=401, detail="Invalid signature")
-        
-        timestamp = int(x_timestamp)
-        current_time = int(time.time())
-        if current_time - timestamp > 300:  # 5 minutes
-            raise HTTPException(status_code=401, detail="Request expired")
-        
+                
         bt.logging.info(f"\033[1;32m New Request Signature Verified\033[0m")
 
 

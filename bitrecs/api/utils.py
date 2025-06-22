@@ -1,4 +1,5 @@
 import httpx
+import ipaddress
 import bittensor as bt
 from typing import Any, Union
 from fastapi import Request, Response
@@ -65,3 +66,21 @@ async def json_only_middleware(self, request: Request, call_next) -> Union[JSONR
         )
     response = await call_next(request)
     return response
+
+
+def parse_ip_whitelist(whitelist_env: str) -> list[str]:    
+    if not whitelist_env or not whitelist_env.strip():
+        return []    
+    allowed_ips = []
+    raw_ips = whitelist_env.split(",")    
+    for ip_str in raw_ips:
+        ip_str = ip_str.strip()
+        if not ip_str:
+            continue                    
+        try:
+            ipaddress.ip_address(ip_str)
+            allowed_ips.append(ip_str)            
+        except ValueError:
+            bt.logging.error(f"Invalid IP address in whitelist: {ip_str}")
+            raise ValueError(f"Invalid IP address in VALIDATOR_API_WHITELIST: {ip_str}")
+    return allowed_ips

@@ -63,9 +63,8 @@ async def filter_allowed_ips(self, request: Request, call_next) -> Response:
         response = await call_next(request)
         return response
 
-    except RateLimitExceeded as e:
-        client_ip = get_client_ip(request)
-        bt.logging.warning(f"Rate limit exceeded for {client_ip}")
+    except RateLimitExceeded as e:        
+        bt.logging.error(f"Rate limit exceeded for {client_ip}")
         return JSONResponse(
             status_code=429,
             content={

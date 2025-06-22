@@ -91,14 +91,14 @@ def put_r2_upload(request: ValidatorUploadRequest, keypair: Keypair) -> bool:
     if not request or not keypair:
         return False    
     
-    signed_url = get_r2_upload_url(request, keypair)    
-    if not is_valid_url(signed_url):        
-        bt.logging.error("Failed to get signed URL")            
-        return False    
+    data_file = os.path.join(os.getcwd(), "miner_responses.db")
+    if not os.path.exists(data_file):
+        bt.logging.error(f"Miner response file does not exist: {data_file}")
+        return False
     
-    data_file = os.path.join(os.getcwd(), 'miner_responses.db')
-    if not os.path.exists(data_file):        
-        bt.logging.error(f"Miner response file does not exist: {data_file}")  
+    signed_url = get_r2_upload_url(request, keypair)
+    if not is_valid_url(signed_url):
+        bt.logging.error("Failed to get signed URL")
         return False
     
     bt.logging.trace("STARTING UPLOAD -----------------------------------------")
@@ -119,7 +119,7 @@ def put_r2_upload(request: ValidatorUploadRequest, keypair: Keypair) -> bool:
         )
         
         if response.status_code in (200, 201):
-            bt.logging.info("Successfully uploaded to R2")         
+            bt.logging.info("Successfully uploaded to R2")
             bt.logging.info("FINISHED UPLOAD SUCCESS -----------------------------------------")
             return True
         else:

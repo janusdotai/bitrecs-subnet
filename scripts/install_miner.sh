@@ -112,4 +112,3 @@ echo -e "💡 ${YELLOW}To use your environment, please open a new terminal (re-s
 echo -e "   Your Python venv will activate automatically."
 echo -e "   Touch .env and fill out the values."
 echo -e "   Then run: ${GREEN}btcli --help${NC} or ${GREEN}cd ~/bt/bitrecs-subnet${NC} to get started.\n"
-

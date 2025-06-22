@@ -100,20 +100,20 @@ run_command "npm install -g pm2" "Installing PM2..." 53
 
 run_command "mount -o remount,size=8G /tmp" "Configuring temporary storage..." 55
 run_command "apt install python3-pip python3.12-venv -y" "Installing Python requirements..." 60
-run_command "mkdir -p /bt && cd /bt" "Creating working directory..." 65
+run_command "mkdir -p \$HOME/bt && cd \$HOME/bt" "Creating working directory..." 65
 
 # Python environment setup
-run_command "python3.12 -m venv bt_venv" "Creating Python virtual environment..." 70
-run_command "source bt_venv/bin/activate && pip3 install bittensor[torch]" "Installing Bittensor..." 80
-run_command "echo 'source /bt/bt_venv/bin/activate' >> ~/.bashrc" "Configuring environment..." 85
+run_command "python3.12 -m venv \$HOME/bt/bt_venv" "Creating Python virtual environment..." 70
+run_command "source \$HOME/bt/bt_venv/bin/activate && pip3 install bittensor[torch]" "Installing Bittensor..." 80
+run_command "grep -qxF 'source \$HOME/bt/bt_venv/bin/activate' ~/.bashrc || echo 'source \$HOME/bt/bt_venv/bin/activate' >> ~/.bashrc" "Configuring environment..." 85
 
 # Validator installation
-run_command "cd /bt && rm -rf bitrecs-subnet || true" "Cleaning old installation..." 90
-run_command "cd /bt && git clone https://github.com/janusdotai/bitrecs-subnet.git" "Cloning Bitrecs repository..." 95
-run_command "cd /bt/bitrecs-subnet && pip3 install -r requirements.txt && python3 -m pip install -e ." "Installing Bitrecs..." 100
+run_command "cd \$HOME/bt && rm -rf bitrecs-subnet || true" "Cleaning old installation..." 90
+run_command "cd \$HOME/bt && git clone https://github.com/janusdotai/bitrecs-subnet.git" "Cloning Bitrecs repository..." 95
+run_command "cd \$HOME/bt/bitrecs-subnet && source \$HOME/bt/bt_venv/bin/activate && pip3 install -r requirements.txt && python3 -m pip install -e ." "Installing Bitrecs..." 100
 
 # Final update
-update_screen 100 "Installation Complete!"
+update_screen 100 "Installation Complete to \$HOME/bt"
 
 # Return to normal terminal
 tput rmcup

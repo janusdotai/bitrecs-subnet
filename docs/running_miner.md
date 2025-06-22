@@ -18,13 +18,14 @@ sudo apt install ufw
 ```
 
 ### Firewall Configuration
-Configure the firewall. The following rules permit SSH access and the required miner communication port:
+## UFW Firewall
+Configure the firewall using UFW. These rules allow SSH access and communication on the miner port (8091):
 
 ```bash
-ufw allow 22
-ufw allow proto tcp to 0.0.0.0/0 port 8091
-ufw enable
-ufw reload
+sudo ufw allow 22
+sudo ufw allow proto tcp to 0.0.0.0/0 port 8091
+sudo ufw enable
+sudo ufw reload
 ```
 
 ## 2. System Resource Configuration

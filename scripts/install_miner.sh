@@ -69,12 +69,13 @@ run_command "swapon /swapfile" "Enabling swap file..." 8
 run_command "grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab" "Persisting swap file..." 9
 
 # 2. Firewall
+# Firewall rules are now configured manually. See docs/running_miner.md "UFW Firewall" section.
 run_command "apt install ufw -y" "Installing UFW..." 10
 run_command "apt-get update && apt-get upgrade -y" "Updating system packages..." 20
-run_command "ufw allow 22" "Allowing SSH..." 30
-run_command "ufw allow proto tcp to 0.0.0.0/0 port 8091" "Allowing port 8091..." 35
-run_command "yes | ufw enable" "Enabling firewall..." 40
-run_command "ufw reload" "Reloading firewall..." 45
+# run_command "ufw allow 22" "Allowing SSH..." 30
+# run_command "ufw allow proto tcp to 0.0.0.0/0 port 8091" "Allowing port 8091..." 35
+# run_command "yes | ufw enable" "Enabling firewall..." 40
+# run_command "ufw reload" "Reloading firewall..." 45
 
 # 3. Clean up for space
 run_command "apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* ~/.cache/pip" "Freeing up disk space..." 46

@@ -7,6 +7,19 @@ This guide ensures the Bitrecs validator works on **Ubuntu 24.10 LTS**. Follow t
 curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/scripts/install_vali.sh | bash
 ```
 
+## UFW Firewall
+
+Configure UFW to permit SSH and the validator's required ports (8091 & 7779):
+
+```bash
+sudo apt install ufw
+sudo ufw allow 22
+sudo ufw allow proto tcp to 0.0.0.0/0 port 8091
+sudo ufw allow proto tcp to 0.0.0.0/0 port 7779
+sudo ufw enable
+sudo ufw reload
+```
+
 ## 2. Keys on machine and register
 Put your keys on the machine, register and stake. 
 

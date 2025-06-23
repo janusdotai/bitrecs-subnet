@@ -4,7 +4,7 @@ This guide ensures the Bitrecs validator works on **Ubuntu 24.10 LTS**. Follow t
 
 ## 1. Installation script
 
-Update your packages before running it the installer
+Update your packages before running the install script.
 
 ```bash
 sudo apt-get update && sudo apt-get upgrade -y

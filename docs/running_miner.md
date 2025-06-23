@@ -45,6 +45,10 @@ Install Python and pip:
 sudo apt-get update && sudo apt-get upgrade -y
 apt install python3-pip
 sudo apt install python3.12-venv
+
+# Prepare a dedicated temporary directory for large wheel builds
+sudo mkdir -p /root/pip_tmp
+export TMPDIR=/root/pip_tmp
 ```
 
 ## 3. Directory Structure Setup
@@ -64,13 +68,6 @@ Create python virtual environment:
 ```bash
 python3.12 -m venv bt_venv
 source bt_venv/bin/activate
-```
-
-### Bittensor Installation
-Install Bittensor:
-
-```bash
-pip3 install bittensor[torch]
 ```
 
 ### Persistent Environment Configuration

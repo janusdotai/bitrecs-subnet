@@ -105,7 +105,7 @@ run_command "mkdir -p \$HOME/bt && cd \$HOME/bt" "Creating working directory..."
 
 # Python environment setup
 run_command "python3.12 -m venv \$HOME/bt/bt_venv" "Creating Python virtual environment..." 70
-run_command "source \$HOME/bt/bt_venv/bin/activate && pip3 install bittensor[torch]" "Installing Bittensor..." 80
+run_command "source \$HOME/bt/bt_venv/bin/activate" "Installing Bittensor..." 80
 run_command "grep -qxF 'source \$HOME/bt/bt_venv/bin/activate' ~/.bashrc || echo 'source \$HOME/bt/bt_venv/bin/activate' >> ~/.bashrc" "Configuring environment..." 85
 
 # Validator installation

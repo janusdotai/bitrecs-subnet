@@ -3,7 +3,6 @@
 This guide ensures the Bitrecs validator works on **Ubuntu 24.10 LTS**. Follow the steps below.
 
 ## 1. Installation script
-
 Update your packages before running the install script.
 
 ```bash
@@ -18,7 +17,18 @@ Put your keys on the machine, register and stake.
 
 Before running the validator, edit the .env environment file and fill it in to match your config specs.
 
-## 4. Start Validator
+## 4. Firewall Configuration
+Configure the firewall using UFW. These rules allow SSH access and communication on the miner port (8091):
+
+```bash
+sudo ufw allow 22
+sudo ufw allow proto tcp to 0.0.0.0/0 port 8091
+sudo ufw allow proto tcp to 0.0.0.0/0 port 7779
+sudo ufw enable
+sudo ufw reload
+```
+
+## 5. Start Validator
 Monitor output with `pm2 logs 0`.
 
 ```bash

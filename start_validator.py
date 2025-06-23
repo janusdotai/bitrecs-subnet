@@ -61,17 +61,7 @@ class ValidatorHealthReport:
 
 def get_version() -> str:
     v = LocalMetadata.local_metadata()
-    return v.head
-    # """Extract the version as current git commit hash"""
-    # result = subprocess.run(
-    #     split("git rev-parse HEAD"),
-    #     check=True,
-    #     capture_output=True,
-    #     cwd=CONST.ROOT_DIR,
-    # )
-    # commit = result.stdout.decode().strip()
-    # assert len(commit) == 40, f"Invalid commit hash: {commit}"
-    # return commit[:8]
+    return v.head   
 
 
 def start_validator_process(pm2_name: str, args: List[str], current_version: str = "0") -> subprocess.Popen:

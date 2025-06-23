@@ -2,6 +2,7 @@
 
 """
 ------------------
+Validator Auto-Updater Script
 
 PM2 is required for this script. 
 
@@ -9,15 +10,13 @@ PM2 is required for this script.
 
 This script runs a validator process and automatically updates it when a new version is released.
 Ideally you are in /bt/bitrecs-subnet (root path) directory when running this script and in the correct virtual environment.
-
-Command-line arguments will be forwarded to validator (`neurons/validator.py`), so you can pass
-them like this:    
+Command-line arguments will be forwarded to validator (`neurons/validator.py`)
 
 1) SUGGESTED (Set it and forget it) - Run this script with PM2
 
 pm2 start --name sn122-vali-updater --interpreter python ./start_validator.py -- --pm2_name 'sn122vali' --netuid 296 --wallet.name default --wallet.hotkey default --logging.trace --wallet.path /root/.bittensor/wallets --neuron.vpermit_tao_limit 10_000 --r2.sync_on
 
-You should have 2 PM2 processes running, the updated itself (sn122-vali-updater) and the actual validator (sn122vali).
+You should have 2 PM2 processes running, the updater itself (sn122-vali-updater) and the actual validator (sn122vali).
 
 2) MANUAL (Have to keep this script running) - Run this script manually (not recommended, good for debugging)
 
@@ -35,6 +34,8 @@ The script will use the same virtual environment as the one used to run it. If y
 validator within virtual environment, run this auto-update script from the virtual environment.
 
 This script will start a PM2 process using the name provided by the --pm2_name argument.
+
+You should 'pm2 save' and reboot to make sure all processes are restarted on reboot
 
 """
 
@@ -75,15 +76,14 @@ class ValidatorHealthReport:
     requests_total: int = field(default=0)
     requests_recent_total: int = field(default=0)
 
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert dataclass to dictionary for JSON serialization"""
-        return asdict(self)
-    
+    def to_dict(self) -> Dict[str, Any]:        
+        return asdict(self)   
+
 
 
 def get_version() -> str:
     v = LocalMetadata.local_metadata()
-    return v.head   
+    return v.head
 
 
 def start_validator_process(pm2_name: str, args: List[str], current_version: str = "0") -> subprocess.Popen:

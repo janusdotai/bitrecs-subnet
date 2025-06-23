@@ -39,10 +39,10 @@ async def api_key_validator(self, request: Request, call_next) -> Response:
     bitrecs_api_key = self.bitrecs_api_key
     if not bitrecs_api_key:
         bt.logging.error(f"ERROR - MISSING BITRECS_API_KEY")
-        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
     if api_key != bitrecs_api_key:
         bt.logging.error(f"ERROR - INVALID API request key mismatch {request.client.host}")        
-        return JSONResponse(status_code=401, content={"detail": "Invalid API key request"})
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
     
     #TODO: this gets called even after a RateLimitExeption has been raised
     try:
@@ -59,11 +59,10 @@ async def api_key_validator(self, request: Request, call_next) -> Response:
 
 
 async def json_only_middleware(self, request: Request, call_next) -> Union[JSONResponse, Response]:
-    if request.headers.get("Content-Type") != "application/json":
-        return JSONResponse(
-            status_code=415,  # Unsupported Media Type
-            content={"detail": "Only JSON requests are allowed"}
-        )
+    if request.method in ["POST", "PUT", "PATCH"]:
+        if request.headers.get("content-type", "").lower() != "application/json":
+            return JSONResponse(status_code=415, content={"detail": "Only JSON requests are allowed"})    
+  
     response = await call_next(request)
     return response
 

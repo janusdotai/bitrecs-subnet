@@ -9,6 +9,7 @@ from typing import Any, Dict, Tuple
 from datetime import datetime
 from dataclasses import asdict, dataclass, field
 from substrateinterface import Keypair
+from bitrecs.utils import constants as CONST
 SERVICE_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 
 
@@ -91,7 +92,7 @@ def put_r2_upload(request: ValidatorUploadRequest, keypair: Keypair) -> bool:
     if not request or not keypair:
         return False    
     
-    data_file = os.path.join(os.getcwd(), "miner_responses.db")
+    data_file = os.path.join(CONST.ROOT_DIR, "miner_responses.db")
     if not os.path.exists(data_file):
         bt.logging.error(f"Miner response file does not exist: {data_file}")
         return False

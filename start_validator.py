@@ -8,12 +8,24 @@ PM2 is required for this script.
 ------------------
 
 This script runs a validator process and automatically updates it when a new version is released.
-Ideally you are in /bt/bitrecs-subnet (root path) directory when running this script.
+Ideally you are in /bt/bitrecs-subnet (root path) directory when running this script and in the correct virtual environment.
 
 Command-line arguments will be forwarded to validator (`neurons/validator.py`), so you can pass
 them like this:    
 
-    python ./start_validator.py --pm2_name 'sn122vali' --netuid 296 --wallet.name default --wallet.hotkey default --logging.trace --wallet.path /root/.bittensor/wallets --neuron.vpermit_tao_limit 10_000 --r2.sync_on
+1) SUGGESTED (Set it and forget it) - Run this script with PM2
+
+pm2 start --name sn122-vali-updater --interpreter python ./start_validator.py -- --pm2_name 'sn122vali' --netuid 296 --wallet.name default --wallet.hotkey default --logging.trace --wallet.path /root/.bittensor/wallets --neuron.vpermit_tao_limit 10_000 --r2.sync_on
+
+You should have 2 PM2 processes running, the updated itself (sn122-vali-updater) and the actual validator (sn122vali).
+
+2) MANUAL (Have to keep this script running) - Run this script manually (not recommended, good for debugging)
+
+python3 ./start_validator.py --pm2_name 'sn122vali' --netuid 296 --wallet.name default --wallet.hotkey default --logging.trace --wallet.path /root/.bittensor/wallets --neuron.vpermit_tao_limit 10_000 --r2.sync_on
+
+3) DEFAULT - (No auto update, just runs the validator in PM2)
+
+pm2 start ./neurons/validator.py --name 'sn122vali' --  --netuid 296 --wallet.name default --wallet.hotkey default --logging.trace --wallet.path /root/.bittensor/wallets --neuron.vpermit_tao_limit 10_000 --r2.sync_on
 
 Auto-updates are enabled by default and will make sure that the latest version is always running
 by pulling the latest version from git and upgrading python packages. This is done periodically.

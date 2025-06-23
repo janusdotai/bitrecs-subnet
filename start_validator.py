@@ -1,10 +1,20 @@
 # https://github.com/impel-intelligence/dippy-bittensor-subnet/blob/main/scripts/start_validator.py
 
 """
+------------------
+
+PM2 is required for this script. 
+
+------------------
+
 This script runs a validator process and automatically updates it when a new version is released.
+Ideally you are in /bt/bitrecs-subnet (root path) directory when running this script.
+
 Command-line arguments will be forwarded to validator (`neurons/validator.py`), so you can pass
-them like this:
-    python3 scripts/start_validator.py --wallet.name=my-wallet
+them like this:    
+
+    python ./start_validator.py --pm2_name 'sn122vali' --netuid 296 --wallet.name default --wallet.hotkey default --logging.trace --wallet.path /root/.bittensor/wallets --neuron.vpermit_tao_limit 10_000 --r2.sync_on
+
 Auto-updates are enabled by default and will make sure that the latest version is always running
 by pulling the latest version from git and upgrading python packages. This is done periodically.
 Local changes may prevent the update, but they will be preserved.
@@ -12,8 +22,8 @@ Local changes may prevent the update, but they will be preserved.
 The script will use the same virtual environment as the one used to run it. If you want to run
 validator within virtual environment, run this auto-update script from the virtual environment.
 
-Pm2 is required for this script. This script will start a pm2 process using the name provided by
-the --pm2_name argument.
+This script will start a PM2 process using the name provided by the --pm2_name argument.
+
 """
 
 import os
@@ -39,7 +49,7 @@ log = logging.getLogger(__name__)
 UPDATES_CHECK_TIME = timedelta(minutes=1)
 BITRECS_PROXY_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 if not BITRECS_PROXY_URL:
-    raise ValueError("BITRECS_PROXY_URL environment variable is not set. Please set it to the BitRecs proxy URL.")
+    raise ValueError("BITRECS_PROXY_URL environment variable is not set.")
 
 
 @dataclass
@@ -231,7 +241,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(
         description="Automatically update and restart the validator process when a new version is released.",
-        epilog="Example usage: python start_validator.py --pm2_name 'sn122vali' --wallet_name 'wallet1' --wallet_hotkey 'key123'",
+        epilog="Example usage: python ./start_validator.py --pm2_name 'sn122vali' --wallet_name 'wallet1' --wallet_hotkey 'key123'",
     )
 
     parser.add_argument("--pm2_name", default="sn122val", help="Name of the PM2 process.")

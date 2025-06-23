@@ -39,6 +39,7 @@ You should 'pm2 save' and reboot to make sure all processes are restarted on reb
 
 """
 
+import json
 import os
 import sys
 import time
@@ -47,19 +48,17 @@ import argparse
 import logging
 import subprocess
 import requests
+import random
 from shlex import split
 from typing import List, Dict, Any
-from datetime import timedelta
 from dataclasses import asdict, dataclass, field
 from bitrecs.utils import constants as CONST
 from bitrecs.utils.version import LocalMetadata
 from dotenv import load_dotenv
 load_dotenv()
 
-
 log = logging.getLogger(__name__)
 
-UPDATES_CHECK_TIME = timedelta(minutes=1)
 BITRECS_PROXY_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 if not BITRECS_PROXY_URL:
     raise ValueError("BITRECS_PROXY_URL environment variable is not set.")
@@ -79,6 +78,25 @@ class ValidatorHealthReport:
     def to_dict(self) -> Dict[str, Any]:        
         return asdict(self)   
 
+
+def read_node_info() -> Dict[str, Any]:
+    node_info_file = 'node_info.json'
+    full_path = os.path.join(CONST.ROOT_DIR, node_info_file)
+    if not os.path.exists(full_path):
+        log.warning(f"Node info file does not exist at {full_path}")
+        return {}
+    try:
+        with open(node_info_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        log.warning(f"Node info file not found: {node_info_file}")
+        return {}
+    except json.JSONDecodeError as e:
+        log.error(f"Error parsing node info JSON: {e}")
+        return {}
+    except Exception as e:
+        log.error(f"Error reading node info: {e}")
+        return {}
 
 
 def get_version() -> str:
@@ -118,17 +136,13 @@ def start_validator_process(pm2_name: str, args: List[str], current_version: str
 
 def _remote_log(payload: Dict[str, Any]):
 
-    final_payload = {
-        "signature": "x",
-        "payload": payload,
-        "commit": "x",
-        "btversion": "x",
-        "uid": "0",
-        "hotkey": "x",
-        "coldkey": "x",
+    node = read_node_info()
+    post_data = {
+        "node": node,
+        "payload": payload        
     }
-
-    log.info(f"remote logging with payload {final_payload}")
+    log.info(f"_remote_log node: {node}")
+    log.info(f"_remote_log payload: {post_data}")
     return
 
     event_report_endpoint = f"{BITRECS_PROXY_URL}/validator/health_report"
@@ -194,7 +208,7 @@ def upgrade_packages() -> None:
 def main(pm2_name: str, args: List[str]) -> None:
     """
     Run the validator process and automatically update it when a new version is released.
-    This will check for updates every `UPDATES_CHECK_TIME` and update the validator
+    This will check for updates every few minutes.
     if a new version is available. Update is performed as simple `git pull --rebase`.
     """
 
@@ -212,6 +226,7 @@ def main(pm2_name: str, args: List[str]) -> None:
                 {
                     "current_version": str(current_version),
                     "latest_version": str(latest_version),
+                    "time": str(datetime.datetime.now(datetime.timezone.utc)),
                     "message": "start_validator_check_update",
                 }
             )
@@ -229,6 +244,7 @@ def main(pm2_name: str, args: List[str]) -> None:
                     payload["current_version"] = str(current_version)
                     payload["latest_version"] = str(latest_version)
                     payload["time"] = str(datetime.datetime.now(datetime.timezone.utc))
+                    payload["message"] = "end_validator_check_update"
                 except Exception as e:
                     log.error(f"Failed to create payload: {e}")
                     payload["error"] = str(e)
@@ -238,7 +254,8 @@ def main(pm2_name: str, args: List[str]) -> None:
                 validator = start_validator_process(pm2_name, args, current_version)
                 current_version = latest_version
 
-            time.sleep(UPDATES_CHECK_TIME.total_seconds())
+            sleep = random.choice([60, 90, 120, 150, 180, 240, 300])
+            time.sleep(sleep)
 
     finally:
         stop_validator_process(validator)

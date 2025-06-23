@@ -1,20 +1,19 @@
-
+import json
 import os
 import logging
 import bittensor as bt
 import pandas as pd
 import sqlite3
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing_extensions import List
 from logging.handlers import RotatingFileHandler
 from bitrecs.protocol import BitrecsRequest
 
-
 EVENTS_LEVEL_NUM = 38
 DEFAULT_LOG_BACKUP_COUNT = 10
-
 SCHEMA_UPDATE_CUTOFF = datetime(2025, 4, 1, tzinfo=timezone.utc)
-
+TIMESTAMP_FILE = 'timestamp.txt'
+NODE_INFO_FILE = 'node_info.json'
 
 def setup_events_logger(full_path, events_retention_size):
     logging.addLevelName(EVENTS_LEVEL_NUM, "EVENT")
@@ -46,53 +45,87 @@ def setup_events_logger(full_path, events_retention_size):
 
 
 
+def write_node_info(network, uid, hotkey, neuron_type, sample_size, v_limit) -> None:
+    """Write node information for the auto-updater"""
+    #node_info_file = 'node_info.json'    
+    node_info = {
+        "network": network,
+        "uid": uid,
+        "hotkey": hotkey,
+        "neuron_type": neuron_type,
+        "sample_size": sample_size,
+        "v_limit": v_limit,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    }
+    
+    tmp_file = NODE_INFO_FILE + '.tmp'    
+    try:
+        with open(tmp_file, 'w', encoding='utf-8') as f:
+            json.dump(node_info, f, indent=2, ensure_ascii=False)
+        os.replace(tmp_file, NODE_INFO_FILE)
+    except Exception as e:
+        bt.logging.error(f"Error writing node info: {e}")
+        # Clean up temp file if it exists
+        if os.path.exists(tmp_file):
+            os.remove(tmp_file)
+        raise
 
-timestamp_file = 'timestamp.txt'
 
-def write_timestamp(current_time):
-    tmp_file = timestamp_file + '.tmp'
+def read_node_info() -> dict:
+    """Read node information"""
+    try:
+        with open(NODE_INFO_FILE, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        bt.logging.warning(f"Node info file not found: {NODE_INFO_FILE}")
+        return {}
+    except json.JSONDecodeError as e:
+        bt.logging.error(f"Error parsing node info JSON: {e}")
+        return {}
+    except Exception as e:
+        bt.logging.error(f"Error reading node info: {e}")
+        return {}
+
+
+
+def write_timestamp(current_time):    
+    tmp_file = TIMESTAMP_FILE + '.tmp'
     with open(tmp_file, 'w') as f:
         f.write(str(current_time))
-    os.replace(tmp_file, timestamp_file)  # Atomic operation to replace the file
+    os.replace(tmp_file, TIMESTAMP_FILE)  # Atomic operation to replace the file
 
 
 def read_timestamp():
     try:
-        with open(timestamp_file, 'r') as f:
+        with open(TIMESTAMP_FILE, 'r') as f:
             timestamp_str = f.read()
             return float(timestamp_str)
     except (FileNotFoundError, ValueError):
         return None
 
 
-def remove_timestamp_file():
-    if os.path.exists(timestamp_file):
-        os.remove(timestamp_file)
-
-
-def log_miner_responses(step: int, responses: List[BitrecsRequest]) -> None:
-    try:        
-        frames = []
-        for response in responses:
-            headers = response.to_headers()
-            df = pd.json_normalize(headers)          
-            frames.append(df)
-        final = pd.concat(frames)
-        cwd = os.getcwd()
-        p = os.path.join(cwd, 'miner_responses')
-        if not os.path.exists(p):
-            os.makedirs(p)        
-        if len(final) > 0:
-            utc_now = datetime.now(timezone.utc)
-            created_at = utc_now.strftime("%Y-%m-%d_%H-%M-%S")
-            full_path = os.path.join(p, f'miner_responses_step_{step}_{created_at}.csv')
-            final.to_csv(full_path, index=False)
-        bt.logging.info(f"Miner responses logged {len(final)}")
-    except Exception as e:
-        bt.logging.error(f"Error in logging miner responses: {e}")
-        pass
-
-
+# def log_miner_responses(step: int, responses: List[BitrecsRequest]) -> None:
+#     try:        
+#         frames = []
+#         for response in responses:
+#             headers = response.to_headers()
+#             df = pd.json_normalize(headers)          
+#             frames.append(df)
+#         final = pd.concat(frames)
+#         cwd = os.getcwd()
+#         p = os.path.join(cwd, 'miner_responses')
+#         if not os.path.exists(p):
+#             os.makedirs(p)        
+#         if len(final) > 0:
+#             utc_now = datetime.now(timezone.utc)
+#             created_at = utc_now.strftime("%Y-%m-%d_%H-%M-%S")
+#             full_path = os.path.join(p, f'miner_responses_step_{step}_{created_at}.csv')
+#             final.to_csv(full_path, index=False)
+#         bt.logging.info(f"Miner responses logged {len(final)}")
+#     except Exception as e:
+#         bt.logging.error(f"Error in logging miner responses: {e}")
+#         pass
 
 
 def update_table_schema(conn: sqlite3.Connection, required_columns: list) -> None:

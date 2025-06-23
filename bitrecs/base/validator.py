@@ -52,7 +52,8 @@ from bitrecs.validator.rules import validate_br_request
 from bitrecs.utils.logging import (    
     read_timestamp, 
     write_timestamp, 
-    log_miner_responses_to_sql
+    log_miner_responses_to_sql,
+    write_node_info
 )
 from bitrecs.utils.wandb import WandbHelper
 from bitrecs.commerce.user_action import UserAction
@@ -159,6 +160,15 @@ class BaseValidatorNeuron(BaseNeuron):
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet        
         self.user_actions: List[UserAction] = []
         
+        write_node_info(
+            network=self.network,
+            uid=self.uid,
+            hotkey=self.wallet.hotkey.ss58_address,
+            neuron_type=self.neuron_type,
+            sample_size=self.config.neuron.sample_size,
+            v_limit=self.config.neuron.vpermit_tao_limit
+        )
+
         if self.config.wandb.enabled == True:
             wandb_project = f"bitrecs_{self.network}"
             wandb_entity = self.config.wandb.entity

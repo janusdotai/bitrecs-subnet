@@ -41,7 +41,7 @@ class ApiServer:
         self.validator = validator
         self.forward_fn = forward_fn
         self.allowed_ips = ["127.0.0.1"]
-        self.bypass_whitelist: bool = True #TODO: Disable this for mainnet
+        self.bypass_whitelist: bool = True
         self.app = FastAPI()
         self.app.state.limiter = limiter
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet
@@ -102,7 +102,7 @@ class ApiServer:
             self.allowed_ips = parse_ip_whitelist(os.environ.get("VALIDATOR_API_WHITELIST", ""))
             if len(self.allowed_ips) == 0:
                 raise ValueError("No allowed IPs configured for mainnet API")
-            bt.logging.info(f"\033[1;31m API Server has {len(self.allowed_ips)} IP whitelist entries \033[0m")
+            bt.logging.info(f"\033[1;32m API Server has {len(self.allowed_ips)} IP whitelist entries \033[0m")
         else:
             raise ValueError(f"Unsupported network: {self.network}")
         self.app.include_router(self.router)

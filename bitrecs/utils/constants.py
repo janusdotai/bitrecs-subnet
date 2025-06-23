@@ -1,4 +1,5 @@
 import re
+import bitrecs
 from pathlib import Path
 
 """
@@ -23,7 +24,7 @@ Constants:
     CONVERSION_SCORING_ENABLED (bool): Flag to enable conversion scoring.
 
 """
-ROOT_DIR = Path(__file__).parent.parent
+ROOT_DIR = Path(bitrecs.__file__).parent.parent
 MAX_DENDRITE_TIMEOUT = 5
 MIN_QUERY_LENGTH = 3
 MAX_QUERY_LENGTH = 30

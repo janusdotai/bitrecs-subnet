@@ -2,8 +2,9 @@
 
 This guide provides detailed instructions for setting up and configuring the Bitrecs miner on **Ubuntu 24.10 LTS**. The Bitrecs subnet is designed to be accessible to miners with varying computational resources, making it suitable for home enthusiasts, local mining operations, and industrial-scale farms.
 
-For quick deployment, you can use the automated installation script:
+For quick deployment, you can use the installation script, otherwise follow the manual guide below. Update your packages before running the install script. 
 ```bash
+sudo apt-get update && sudo apt-get upgrade -y
 curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/scripts/install_miner.sh | bash
 ```
 

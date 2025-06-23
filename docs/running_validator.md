@@ -2,22 +2,13 @@
 
 This guide ensures the Bitrecs validator works on **Ubuntu 24.10 LTS**. Follow the steps below.
 
-## 1. Install script 
+## 1. Installation script
+
+Update your packages before running it the installer
+
 ```bash
+sudo apt-get update && sudo apt-get upgrade -y
 curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/scripts/install_vali.sh | bash
-```
-
-## UFW Firewall
-
-Configure UFW to permit SSH and the validator's required ports (8091 & 7779):
-
-```bash
-sudo apt install ufw
-sudo ufw allow 22
-sudo ufw allow proto tcp to 0.0.0.0/0 port 8091
-sudo ufw allow proto tcp to 0.0.0.0/0 port 7779
-sudo ufw enable
-sudo ufw reload
 ```
 
 ## 2. Keys on machine and register
@@ -32,10 +23,10 @@ Monitor output with `pm2 logs 0`.
 
 ```bash
 pm2 start ./neurons/validator.py --name v -- \
-        --netuid 296 \
+        --netuid 122 \
         --wallet.name default --wallet.hotkey default \
         --neuron.vpermit_tao_limit 1_000_000 \
-        --subtensor.network wss://test.finney.opentensor.ai:433 \
+        --subtensor.network wss://entrypoint-finney.opentensor.ai:443 \
         --logging.trace \
         --r2.sync_on 
 

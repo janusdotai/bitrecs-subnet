@@ -149,12 +149,12 @@ Launch your miner using PM2 with comprehensive logging and monitoring:
 
 ```bash
 pm2 start ./neurons/miner.py --name miner -- \
-        --netuid 296 \
-        --subtensor.network wss://test.finney.opentensor.ai:443 \
+        --netuid 122 \
+        --subtensor.network wss://entrypoint-finney.opentensor.ai:443 \
         --wallet.name default \
         --wallet.hotkey default \
-        --logging.trace \
-        --llm.model openrouter/google/gemini-2.5-flash-preview-05-20
+        --logging.debug \
+        --llm.model openrouter/google/gemini-2.0-flash-001	
 ```
 
 ### Process Management and Monitoring

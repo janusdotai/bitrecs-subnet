@@ -27,7 +27,7 @@ pm2 start ./neurons/validator.py --name v -- \
         --wallet.name default --wallet.hotkey default \
         --neuron.vpermit_tao_limit 1_000_000 \
         --subtensor.network wss://entrypoint-finney.opentensor.ai:443 \
-        --logging.trace \
+        --logging.debug \
         --r2.sync_on 
 
 ```

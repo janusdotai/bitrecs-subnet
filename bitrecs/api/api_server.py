@@ -46,9 +46,10 @@ class ApiServer:
         self.app.state.limiter = limiter
         self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet
         self.hot_key = validator.wallet.hotkey.ss58_address
-        if self.network != "mainnet":
-            bt.logging.warning(f"\033[1;33m WARNING - API Server is running in {self.network} mode \033[0m")
-            raise ValueError(f"API Server is not supported in {self.network} mode, please use mainnet")
+
+        # if self.network != "mainnet":
+        #     bt.logging.warning(f"\033[1;33m WARNING - API Server is running in {self.network} mode \033[0m")
+        #     raise ValueError(f"API Server is not supported in {self.network} mode, please use mainnet")
      
         self.proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
         if not self.proxy_url:

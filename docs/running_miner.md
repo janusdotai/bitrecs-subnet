@@ -98,8 +98,8 @@ cd bitrecs-subnet
 Install all required Python packages:
 
 ```bash
-pip3 install -r requirements.txt
 python3 -m pip install -e .
+pip3 install -r requirements.txt
 ```
 
 ### Process Management Setup
@@ -110,9 +110,15 @@ sudo apt install -y nodejs npm
 sudo npm install -g pm2
 ```
 
-## 6. Wallet Configuration and Subnet Registration
+
+## 7. Wallet Configuration and Subnet Registration
 
 ### New Wallet Creation
+
+**UPATE** - please read this guide https://docs.learnbittensor.org/getting-started/coldkey-hotkey-security
+
+Generally you should use a separate device for your master coldkey and you register your UID from this device.  On the mining **server** you should use regen_coldkeypub which only exposes your public key.
+
 If you don't have an existing Bittensor wallet, complete the following steps:
 
 1. **Install BTCLI:** Follow the official [Installation Guide](https://docs.bittensor.com/getting-started/install-btcli)
@@ -140,6 +146,28 @@ btcli subnet register --netuid 296 --network wss://test.finney.opentensor.ai:443
 ### Configuration File Setup
 Before initiating the miner, you must configure the environment variables in the `.env` file. 
 
+
+```bash
+mv .env.dev.example .env
+
+SAMPLE .env snippet:
+# Required for miners 
+# Specify which provider on startup with --llm.provider [LLM_PROVIDER] 
+# If no provider is specified it will default to OPEN_ROUTER
+OLLAMA_LOCAL_URL=""
+OPENROUTER_API_KEY="your_api_key"
+CHATGPT_API_KEY=""
+VLLM_API_KEY=""
+GEMINI_API_KEY=""
+GROK_API_KEY=""
+CHUTES_API_KEY=""
+
+Example:  --llm.provider GEMINI --llm.model gemini-2.0-flash-lite-001
+
+The system will expect a valid GEMINI_API_KEY 
+
+```
+
 ## 8. Miner Deployment and Monitoring
 
 ### Starting the Miner Process
@@ -152,7 +180,8 @@ pm2 start ./neurons/miner.py --name miner -- \
         --wallet.name default \
         --wallet.hotkey default \
         --logging.trace \
-        --llm.model openrouter/google/gemini-2.5-flash-preview-05-20
+        --llm.provider GEMINI
+        --llm.model gemini-2.5-flash-preview-05-20
 ```
 
 ### Process Management and Monitoring

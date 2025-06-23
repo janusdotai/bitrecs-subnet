@@ -9,7 +9,7 @@ setuptools~=70.0.0
 python-dotenv==1.0.1
 openai==1.58.1
 pandas==2.2.3
-json-repair==0.33.0
+json-repair==0.35.0
 jsonschema==4.23.0
 loguru==0.7.3
 wandb==0.19.1

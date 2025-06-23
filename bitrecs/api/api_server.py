@@ -29,7 +29,7 @@ load_dotenv()
 
 ForwardFn = Callable[[BitrecsRequest], BitrecsRequest]
 
-SECRET_KEY = "change-me"  #used only for localnet
+SECRET_KEY_LOCALNET = "change-me"
 
 
 class ApiServer:
@@ -41,9 +41,14 @@ class ApiServer:
         self.validator = validator
         self.forward_fn = forward_fn
         self.allowed_ips = ["127.0.0.1"]
-        self.bypass_whitelist: bool = True
+        self.bypass_whitelist: bool = True #TODO: Disable this for mainnet
         self.app = FastAPI()
         self.app.state.limiter = limiter
+        self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet
+        self.hot_key = validator.wallet.hotkey.ss58_address
+        if self.network != "mainnet":
+            bt.logging.warning(f"\033[1;33m WARNING - API Server is running in {self.network} mode \033[0m")
+            raise ValueError(f"API Server is not supported in {self.network} mode, please use mainnet")
      
         self.proxy_url = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
         if not self.proxy_url:
@@ -54,6 +59,7 @@ class ApiServer:
         if not self.bitrecs_api_key:
             bt.logging.error(f"\033[1;31m ERROR - MISSING BITRECS_API_KEY \033[0m")
             raise Exception("Missing BITRECS_API_KEY")
+            
         
         async def general_exception_handler(request: Request, exc: Exception):
             bt.logging.error(f"Unhandled exception: {request.url} - {str(exc)}")
@@ -65,17 +71,14 @@ class ApiServer:
                     "detail" : "General",
                     "data": None
                 }
-            )
-        
-        self.app.middleware("http")(partial(json_only_middleware, self))
+            )        
+
         self.app.middleware("http")(partial(filter_allowed_ips, self))
         self.app.middleware('http')(partial(api_key_validator, self))
+        self.app.middleware("http")(partial(json_only_middleware, self))
         self.app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=5)
         self.app.add_exception_handler(Exception, general_exception_handler)
-      
-        self.hot_key = validator.wallet.hotkey.ss58_address        
-        self.network = os.environ.get("NETWORK").strip().lower() #localnet / testnet / mainnet
-
+        
         self.config = Config(
             app=self.app,
             host="0.0.0.0",
@@ -98,6 +101,7 @@ class ApiServer:
             self.allowed_ips = parse_ip_whitelist(os.environ.get("VALIDATOR_API_WHITELIST", ""))
             if len(self.allowed_ips) == 0:
                 raise ValueError("No allowed IPs configured for mainnet API")
+            bt.logging.info(f"\033[1;31m API Server has {len(self.allowed_ips)} IP whitelist entries \033[0m")
         else:
             raise ValueError(f"Unsupported network: {self.network}")
         self.app.include_router(self.router)
@@ -114,7 +118,7 @@ class ApiServer:
         bt.logging.info(f"\033[1;32m API Server initialized on {self.network} \033[0m")
 
     
-    async def verify_request(self, request: BitrecsRequest, x_signature: str, x_timestamp: str):
+    async def verify_request_localnet(self, request: BitrecsRequest, x_signature: str, x_timestamp: str):
         timestamp = int(x_timestamp)
         current_time = int(time.time())
         if current_time - timestamp > 300:
@@ -136,7 +140,7 @@ class ApiServer:
         body_str = json.dumps(d, sort_keys=True)
         string_to_sign = f"{x_timestamp}.{body_str}"
         expected_signature = hmac.new(
-            SECRET_KEY.encode('utf-8'),
+            SECRET_KEY_LOCALNET.encode('utf-8'),
             string_to_sign.encode('utf-8'),
             hashlib.sha256
         ).hexdigest()
@@ -211,7 +215,7 @@ class ApiServer:
 
         try:
           
-            await self.verify_request(request, x_signature, x_timestamp)
+            await self.verify_request_localnet(request, x_signature, x_timestamp)
 
             store_catalog = ProductFactory.try_parse_context(request.context)
             catalog_size = len(store_catalog)
@@ -288,7 +292,7 @@ class ApiServer:
 
             if len(request.context) > 100_000:
                 tc = PromptFactory.get_token_count(request.context)
-                if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
+                if tc > CONST.MAX_CONTEXT_TOKEN_COUNT:
                     bt.logging.error(f"API context too large: {tc} tokens")
                     return JSONResponse(status_code=400,
                                         content={"detail": "error - context too large", "status_code": 400})
@@ -384,7 +388,7 @@ class ApiServer:
 
             if len(request.context) > 100_000:
                 tc = PromptFactory.get_token_count(request.context)
-                if tc > CONST.MAX_CONTEXT_TOKEN_LENGTH:
+                if tc > CONST.MAX_CONTEXT_TOKEN_COUNT:
                     bt.logging.error(f"API context too large: {tc} tokens")
                     return JSONResponse(status_code=400,
                                         content={"detail": "error - context too large", "status_code": 400})

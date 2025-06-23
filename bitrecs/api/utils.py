@@ -39,7 +39,7 @@ async def api_key_validator(self, request: Request, call_next) -> Response:
     bitrecs_api_key = self.bitrecs_api_key
     if not bitrecs_api_key:
         bt.logging.error(f"ERROR - MISSING BITRECS_API_KEY")
-        return JSONResponse(status_code=500, content={"detail": "Server error - invalid API key"})
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
     if api_key != bitrecs_api_key:
         bt.logging.error(f"ERROR - INVALID API request key mismatch {request.client.host}")        
         return JSONResponse(status_code=401, content={"detail": "Invalid API key request"})
@@ -55,7 +55,7 @@ async def api_key_validator(self, request: Request, call_next) -> Response:
     except Exception as e:
         bt.logging.error(f"ERROR api_key_validator - {e}")
         return JSONResponse(status_code=500, 
-                            content={"detail": "Internal server error - key validator"})
+                            content={"detail": "Internal server error"})
 
 
 async def json_only_middleware(self, request: Request, call_next) -> Union[JSONResponse, Response]:

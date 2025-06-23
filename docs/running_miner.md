@@ -2,8 +2,9 @@
 
 This guide provides detailed instructions for setting up and configuring the Bitrecs miner on **Ubuntu 24.10 LTS**. The Bitrecs subnet is designed to be accessible to miners with varying computational resources, making it suitable for home enthusiasts, local mining operations, and industrial-scale farms.
 
-For quick deployment, you can use the automated installation script:
+For quick deployment, you can use the installation script, otherwise follow the manual guide below. Update your packages before running the install script. 
 ```bash
+sudo apt-get update && sudo apt-get upgrade -y
 curl -sL https://raw.githubusercontent.com/janusdotai/bitrecs-subnet/docs/scripts/install_miner.sh | bash
 ```
 
@@ -18,13 +19,14 @@ sudo apt install ufw
 ```
 
 ### Firewall Configuration
-Configure the firewall. The following rules permit SSH access and the required miner communication port:
+## UFW Firewall
+Configure the firewall using UFW. These rules allow SSH access and communication on the miner port (8091):
 
 ```bash
-ufw allow 22
-ufw allow proto tcp to 0.0.0.0/0 port 8091
-ufw enable
-ufw reload
+sudo ufw allow 22
+sudo ufw allow proto tcp to 0.0.0.0/0 port 8091
+sudo ufw enable
+sudo ufw reload
 ```
 
 ## 2. System Resource Configuration
@@ -43,6 +45,10 @@ Install Python and pip:
 sudo apt-get update && sudo apt-get upgrade -y
 apt install python3-pip
 sudo apt install python3.12-venv
+
+# Prepare a dedicated temporary directory for large wheel builds
+sudo mkdir -p /root/pip_tmp
+export TMPDIR=/root/pip_tmp
 ```
 
 ## 3. Directory Structure Setup
@@ -62,13 +68,6 @@ Create python virtual environment:
 ```bash
 python3.12 -m venv bt_venv
 source bt_venv/bin/activate
-```
-
-### Bittensor Installation
-Install Bittensor:
-
-```bash
-pip3 install bittensor[torch]
 ```
 
 ### Persistent Environment Configuration
@@ -175,13 +174,12 @@ Launch your miner using PM2 with comprehensive logging and monitoring:
 
 ```bash
 pm2 start ./neurons/miner.py --name miner -- \
-        --netuid 296 \
-        --subtensor.network wss://test.finney.opentensor.ai:443 \
+        --netuid 122 \
+        --subtensor.network wss://entrypoint-finney.opentensor.ai:443 \
         --wallet.name default \
         --wallet.hotkey default \
-        --logging.trace \
-        --llm.provider GEMINI
-        --llm.model gemini-2.5-flash-preview-05-20
+        --logging.debug \
+        --llm.model openrouter/google/gemini-2.0-flash-001	
 ```
 
 ### Process Management and Monitoring

@@ -255,6 +255,7 @@ def main(pm2_name: str, args: List[str]) -> None:
                 current_version = latest_version
 
             sleep = random.choice([60, 90, 120, 150, 180, 240, 300])
+            log.info(f"Sleeping for {sleep} seconds before checking for updates again.")
             time.sleep(sleep)
 
     finally:

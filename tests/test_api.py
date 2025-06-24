@@ -368,5 +368,5 @@ def test_non_json_post_rejected():
 def test_post_node_info():
     from start_validator import _remote_log
     payload = {"bitrecs_test": "foo"}
-    result = _remote_log(payload=payload)    
+    result = _remote_log(payload=payload)
     assert True == result

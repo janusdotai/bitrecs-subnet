@@ -62,7 +62,7 @@ log = logging.getLogger(__name__)
 BITRECS_PROXY_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 if not BITRECS_PROXY_URL:
     raise ValueError("BITRECS_PROXY_URL environment variable is not set.")
-
+NETWORK = os.environ.get("NETWORK", "").strip().lower()
 
 def read_node_info() -> Dict[str, Any]:
     node_info_file = 'node_info.json'
@@ -121,6 +121,10 @@ def start_validator_process(pm2_name: str, args: List[str], current_version: str
 
 def _remote_log(payload: Dict[str, Any]) -> bool:
     """Send node info"""
+
+    if NETWORK != "mainnet":
+        log.info("Skipping node report for testnet.")
+        return False
     
     node = read_node_info()
     post_data = {

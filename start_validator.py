@@ -16,7 +16,7 @@ Command-line arguments will be forwarded to validator (`neurons/validator.py`)
 
 pm2 start --name sn122-vali-updater --interpreter python ./start_validator.py -- --pm2_name 'sn122vali' --netuid 296 --wallet.name default --wallet.hotkey default --logging.trace --wallet.path /root/.bittensor/wallets --neuron.vpermit_tao_limit 10_000 --r2.sync_on
 
-You should have 2 PM2 processes running, the updater itself (sn122-vali-updater) and the actual validator (sn122vali).
+You should end up with two PM2 processes running, the updater itself (sn122-vali-updater) and the actual validator (sn122vali).
 
 2) MANUAL (Have to keep this script running) - Run this script manually (not recommended, good for debugging)
 
@@ -63,6 +63,7 @@ BITRECS_PROXY_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 if not BITRECS_PROXY_URL:
     raise ValueError("BITRECS_PROXY_URL environment variable is not set.")
 NETWORK = os.environ.get("NETWORK", "").strip().lower()
+
 
 def read_node_info() -> Dict[str, Any]:
     node_info_file = 'node_info.json'
@@ -119,7 +120,7 @@ def start_validator_process(pm2_name: str, args: List[str], current_version: str
 
 
 
-def _remote_log(payload: Dict[str, Any]) -> bool:
+def post_node_report(payload: Dict[str, Any]) -> bool:
     """Send node info"""
 
     if NETWORK != "mainnet":
@@ -173,7 +174,7 @@ def pull_latest_version() -> None:
         subprocess.run(split("git pull --rebase --autostash"), check=True, cwd=CONST.ROOT_DIR)
     except subprocess.CalledProcessError as exc:
         log.error("Failed to pull, reverting: %s", exc)
-        _remote_log({"error": str(exc), "message": "Failed to pull from git, reverting"})
+        post_node_report({"error": str(exc), "message": "Failed to pull from git, reverting"})
 
         subprocess.run(split("git rebase --abort"), check=True, cwd=CONST.ROOT_DIR)
 
@@ -222,7 +223,7 @@ def main(pm2_name: str, args: List[str]) -> None:
             pull_latest_version()
             latest_version = get_version()
             log.info("Latest version: %s", latest_version)
-            _remote_log(
+            post_node_report(
                 {
                     "current_version": str(current_version),
                     "latest_version": str(latest_version),
@@ -249,7 +250,7 @@ def main(pm2_name: str, args: List[str]) -> None:
                     log.error(f"Failed to create payload: {e}")
                     payload["error"] = str(e)
                 finally:
-                    _remote_log(payload)
+                    post_node_report(payload)
                 stop_validator_process(validator)
                 validator = start_validator_process(pm2_name, args, current_version)
                 current_version = latest_version

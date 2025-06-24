@@ -370,3 +370,8 @@ def test_post_node_info():
     payload = {"bitrecs_test": "foo"}
     result = post_node_report(payload=payload)
     assert True == result
+
+
+def test_trigger_update():
+    thing = True
+    assert True == thing

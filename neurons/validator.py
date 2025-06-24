@@ -30,7 +30,6 @@ from bitrecs.utils.uids import get_random_miner_uids2, ping_miner_uid
 from bitrecs.utils.version import LocalMetadata
 from bitrecs.validator import forward
 from bitrecs.protocol import BitrecsRequest
-from bitrecs.utils.gpu import GPUInfo
 from bitrecs.utils import constants as CONST
 from bitrecs.utils.r2 import put_r2_upload
 from dotenv import load_dotenv
@@ -208,8 +207,7 @@ class Validator(BaseValidatorNeuron):
     
 
 async def main():
-    bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")
-    await GPUInfo.log_gpu_info()
+    bt.logging.info(f"\033[32m Starting Bitrecs Validator\033[0m ... {int(time.time())}")    
     with Validator() as validator:
         start_time = time.time()      
         while True:

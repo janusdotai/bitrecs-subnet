@@ -34,7 +34,6 @@ from bitrecs.llms.prompt_factory import PromptFactory
 from bitrecs.llms.factory import LLM, LLMFactory
 from bitrecs.utils.runtime import execute_periodically
 from bitrecs.utils.uids import best_uid
-from bitrecs.utils.gpu import GPUInfo
 from bitrecs.utils.version import LocalMetadata
 from dotenv import load_dotenv
 load_dotenv()
@@ -422,8 +421,7 @@ class Miner(BaseMinerNeuron):
 
 
         
-async def main():    
-    await GPUInfo.log_gpu_info()    
+async def main():
     with Miner() as miner:
         start_time = time.time()        
         while True:            

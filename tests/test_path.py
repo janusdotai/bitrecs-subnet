@@ -19,10 +19,9 @@ class TestRootDirFromConstants:
     
     def test_root_dir_contains_project_files(self):
         """Test that ROOT_DIR contains expected project files"""
-        expected_files = [
-            'requirements.txt',
+        expected_files = [            
             'README.md', 
-            #'pyproject.toml',
+            'pyproject.toml',
             'setup.py',
             '.gitignore'
         ]
@@ -150,7 +149,7 @@ class TestRootDirUsage:
             'tests': ROOT_DIR / 'tests',
             'docs': ROOT_DIR / 'docs', 
             'bitrecs': ROOT_DIR / 'bitrecs',
-            'requirements': ROOT_DIR / 'requirements.txt',
+            'requirements': ROOT_DIR / 'pyproject.toml',
             'readme': ROOT_DIR / 'README.md'
         }
         

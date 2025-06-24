@@ -111,7 +111,7 @@ run_command "grep -qxF 'source \$HOME/bt/bt_venv/bin/activate' ~/.bashrc || echo
 # Validator installation
 run_command "cd \$HOME/bt && rm -rf bitrecs-subnet || true" "Cleaning old installation..." 90
 run_command "cd \$HOME/bt && git clone https://github.com/janusdotai/bitrecs-subnet.git" "Cloning Bitrecs repository..." 95
-run_command "cd \$HOME/bt/bitrecs-subnet && source \$HOME/bt/bt_venv/bin/activate && pip3 install -r requirements.txt && python3 -m pip install -e ." "Installing Bitrecs..." 100
+run_command "cd \$HOME/bt/bitrecs-subnet && source \$HOME/bt/bt_venv/bin/activate && python3 -m pip install -e ." "Installing Bitrecs..." 100
 
 # Final update
 update_screen 100 "Installation Complete to \$HOME/bt"

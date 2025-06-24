@@ -128,6 +128,10 @@ def post_node_report(payload: Dict[str, Any]) -> bool:
         return False
     
     node = read_node_info()
+    if not node:
+        log.error("Node info is empty, cannot send node report.")
+        return False
+    
     post_data = {
         "node": node,
         "payload": payload        

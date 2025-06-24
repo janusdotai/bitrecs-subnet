@@ -79,7 +79,7 @@ echo "source /root/bt/bt_venv/bin/activate" >> ~/.bashrc
 
 **System Restart Required:** Reboot to ensure all configurations take effect:
 ```bash
-reboot now
+reboot now - confirm you venv is activated after reboot
 ```
 
 ## 5. Bitrecs Miner Installation
@@ -96,9 +96,10 @@ cd bitrecs-subnet
 ### Dependency Installation
 Install all required Python packages:
 
+**Esnure that you are in the correct virtual environment**
+
 ```bash
 python3 -m pip install -e .
-pip3 install -r requirements.txt
 ```
 
 ### Process Management Setup
@@ -180,6 +181,8 @@ pm2 start ./neurons/miner.py --name miner -- \
         --wallet.hotkey default \
         --logging.debug \
         --llm.model openrouter/google/gemini-2.0-flash-001	
+
+pm2 save        
 ```
 
 ### Process Management and Monitoring
@@ -199,6 +202,7 @@ If you encounter issues:
 1. **Dependency Conflicts:** Ensure you're operating within the virtual environment
 2. **Network Issues:** Verify firewall rules and port accessibility
 3. **Wallet Problems:** Confirm wallet names match between registration and miner startup
+4. **Log Level** - use the "--logging.trace" flag to see full verbose logs of your miner running to help diagnose issues
 
 ---
 

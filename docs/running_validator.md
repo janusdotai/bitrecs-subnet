@@ -28,7 +28,7 @@ sudo ufw enable
 sudo ufw reload
 ```
 
-## 5. Start Validator
+## 5. Start Validator (No Auto-Updates)
 Monitor output with `pm2 logs 0`.
 
 ```bash
@@ -40,4 +40,16 @@ pm2 start ./neurons/validator.py --name v -- \
         --logging.debug \
         --r2.sync_on 
 
+pm2 save
 ```
+
+## 5.1 Start Validator (With Auto-Updates)
+
+Use the start_validator.py script to run the auto-updater which will:
+
+- create a pm2 process to handle updates automatically
+- create a pm2 process to run the validator.py
+
+see: [start_validator.py](/start_validator.py)
+
+This is the recommended way for running a validator with worry free updates.

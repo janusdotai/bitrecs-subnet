@@ -185,19 +185,17 @@ def pull_latest_version() -> None:
 
 def upgrade_packages() -> None:
     """
-    Upgrade python packages by running `pip install --upgrade -r requirements.txt`.
-    Notice: this won't work if some package in `requirements.txt` is downgraded.
-    Ignored as this is unlikely to happen.
+    Upgrade python packages by running `pip install -e .`
     """
-    log.info("Upgrading requirements")
-    try:
-        subprocess.run(
-            split(f"{sys.executable} -m pip install -r requirements.txt"),
-            check=True,
-            cwd=CONST.ROOT_DIR,
-        )
-    except subprocess.CalledProcessError as exc:
-        log.error("Failed to upgrade packages, proceeding anyway. %s", exc)
+    # log.info("Upgrading requirements")
+    # try:
+    #     subprocess.run(
+    #         split(f"{sys.executable} -m pip install -r requirements.txt"),
+    #         check=True,
+    #         cwd=CONST.ROOT_DIR,
+    #     )
+    # except subprocess.CalledProcessError as exc:
+    #     log.error("Failed to upgrade packages, proceeding anyway. %s", exc)
 
     log.info("Upgrading packages")
     try:

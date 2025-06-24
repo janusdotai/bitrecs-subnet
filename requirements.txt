@@ -5,7 +5,6 @@ pydantic==2.10.4
 pytest==8.3.4
 torch==2.6.0
 numpy==2.0.2
-setuptools~=70.0.0
 python-dotenv==1.0.1
 openai==1.58.1
 pandas==2.2.3

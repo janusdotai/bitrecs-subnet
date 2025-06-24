@@ -16,19 +16,19 @@ license = {text = "MIT"}
 dependencies = [
     "bittensor==9.7.0",
     "bittensor-cli==9.7.0", 
+    "substrate-interface==1.7.11",
     "starlette==0.37.2",
     "pydantic==2.10.4",    
     "numpy==2.0.2",    
     "python-dotenv==1.0.1",
-    "openai==1.58.1",
+    "openai==1.91.0",
     "pandas==2.2.3",
     "json-repair==0.35.0",
     "jsonschema==4.23.0",
     "loguru==0.7.3",
     "wandb==0.19.1",
     "tiktoken==0.8.0",
-    "slowapi==0.1.9",
-    "substrate-interface==1.7.11",
+    "slowapi==0.1.9"
 ]
 
 [project.urls]

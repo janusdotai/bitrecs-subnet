@@ -363,3 +363,10 @@ def test_non_json_post_rejected():
     response = requests.post(url, headers=headers, files=files)
     print(response.text)
     assert response.status_code == 415
+
+
+def test_post_node_info():
+    from start_validator import _remote_log
+    payload = {"bitrecs_test": "foo"}
+    result = _remote_log(payload=payload)    
+    assert True == result

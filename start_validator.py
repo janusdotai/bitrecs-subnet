@@ -51,9 +51,9 @@ import requests
 import random
 from shlex import split
 from typing import List, Dict, Any
-from dataclasses import asdict, dataclass, field
 from bitrecs.utils import constants as CONST
 from bitrecs.utils.version import LocalMetadata
+from bitrecs import __version__ as this_version
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -62,21 +62,6 @@ log = logging.getLogger(__name__)
 BITRECS_PROXY_URL = os.environ.get("BITRECS_PROXY_URL").removesuffix("/")
 if not BITRECS_PROXY_URL:
     raise ValueError("BITRECS_PROXY_URL environment variable is not set.")
-
-
-@dataclass
-class ValidatorHealthReport:
-    created_at: str = field(default_factory=lambda: datetime.now().isoformat())
-    hot_key: str = field(default_factory=str)
-    val_uid: int = field(default=0)
-    step: str = field(default_factory=str)
-    commit_hash: str = field(default_factory=str)
-    version: str = field(default_factory=str)
-    requests_total: int = field(default=0)
-    requests_recent_total: int = field(default=0)
-
-    def to_dict(self) -> Dict[str, Any]:        
-        return asdict(self)   
 
 
 def read_node_info() -> Dict[str, Any]:
@@ -134,24 +119,35 @@ def start_validator_process(pm2_name: str, args: List[str], current_version: str
 
 
 
-def _remote_log(payload: Dict[str, Any]):
-
+def _remote_log(payload: Dict[str, Any]) -> bool:
+    """Send node info"""
+    
     node = read_node_info()
     post_data = {
         "node": node,
         "payload": payload        
     }
-    log.info(f"_remote_log node: {node}")
-    log.info(f"_remote_log payload: {post_data}")
-    return
+    log.info(f"Sending node report with payload: {post_data}")
 
-    event_report_endpoint = f"{BITRECS_PROXY_URL}/validator/health_report"
+    node_report_endpoint = f"{BITRECS_PROXY_URL}/node/report"
     try:
-        response = requests.post(event_report_endpoint, json=final_payload)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-        log.info(f"successfully sent event_report with payload {final_payload}")
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {os.environ.get('BITRECS_API_KEY')}",            
+            'User-Agent': f'Bitrecs-Node/{this_version}'
+        }        
+        response = requests.post(
+            node_report_endpoint,
+            json=post_data,
+            headers=headers,
+            timeout=30
+        )
+        response.raise_for_status()
+        log.info(f"Successfully sent node report: {response.status_code}")
+        return True
+        
     except Exception as e:
-        log.error(f"could not remote log: {e}. This error is ok to ignore if you are a validator")
+        log.error(f"Failed to send node report: {e}")
 
 
 def stop_validator_process(process: subprocess.Popen) -> None:

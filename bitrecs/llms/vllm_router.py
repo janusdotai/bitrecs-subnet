@@ -28,7 +28,9 @@ class vLLM:
             model=self.model,
             messages=[
                 {"role": "user", "content": user_prompt}
-            ]
+            ],
+            temperature=self.temp,
+            max_tokens=2048
         )
         #print(completion.choices[0].message.content)
         result = completion.choices[0].message.content

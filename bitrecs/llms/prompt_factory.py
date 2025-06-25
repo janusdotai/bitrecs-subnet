@@ -3,6 +3,7 @@ import json
 import tiktoken
 import bittensor as bt
 import bitrecs.utils.constants as CONST
+from functools import lru_cache
 from typing import List, Optional
 from datetime import datetime
 from bitrecs.commerce.user_profile import UserProfile
@@ -159,12 +160,10 @@ class PromptFactory:
     - No explanations or text outside the JSON array.
 
     Example format:
-    [
-        {{"sku": "XYZ", "name": "Hunter Original Play Boot Chelsea", "price": "115", "reason": "User is viewing rainboots, we recommend this alternative pair of rainboots which is our best seller"}},
+    
+    [{{"sku": "XYZ", "name": "Hunter Original Play Boot Chelsea", "price": "115", "reason": "User is viewing rainboots, we recommend this alternative pair of rainboots which is our best seller"}},
         {{"sku": "ABC", "name": "Men's Lightweight Hooded Rain Jacket", "price": "149", "reason": "Since the user is looking at mens rainboots, given the season a mens raincoat should be a good fit"}},
-        {{"sku": "DEF", "name": "Davek Elite Umbrella", "price": "159", "reason": "An Umbrella would go nicely with ABC Lightweight Hooded Rain Jacket and is often paired with it"}}
-        
-    ]"""
+        {{"sku": "DEF", "name": "Davek Elite Umbrella", "price": "159", "reason": "An Umbrella would go nicely with ABC Lightweight Hooded Rain Jacket and is often paired with it"}}]"""
 
         prompt_length = len(prompt)
         bt.logging.info(f"LLM QUERY Prompt length: {prompt_length}")
@@ -182,11 +181,15 @@ class PromptFactory:
     
     
     @staticmethod
-    def get_token_count(prompt: str, encoding_name: str = "o200k_base") -> int:        
-        encoding = tiktoken.get_encoding(encoding_name)        
+    def get_token_count(prompt: str, encoding_name: str="o200k_base") -> int:
+        encoding = PromptFactory._get_cached_encoding(encoding_name)
         tokens = encoding.encode(prompt)
-        return len(tokens)
-    
+        return len(tokens)    
+
+    @staticmethod
+    @lru_cache(maxsize=4)
+    def _get_cached_encoding(encoding_name: str):
+        return tiktoken.get_encoding(encoding_name)
     
     @staticmethod
     def get_word_count(prompt: str) -> int:

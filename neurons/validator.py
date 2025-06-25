@@ -127,15 +127,14 @@ class Validator(BaseValidatorNeuron):
                 bt.logging.trace(f"uid: {uid} has stake {this_stake} > {stake_limit}, skipping")
                 continue
 
-            try:
-                ip = self.metagraph.axons[uid].ip
-                if ping_miner_uid(self, uid, 8091, 5):
-                    bt.logging.trace(f"\033[1;32m ping: {ip}:OK \033[0m")
+            try:                
+                if ping_miner_uid(self, uid, 8091, 3):
+                    bt.logging.trace(f"\033[1;32m ping: {uid}:OK \033[0m")
                     selected_miners.append(uid)
                 else:
-                    bt.logging.trace(f"\033[1;33m ping: {ip}:FALSE \033[0m")
+                    bt.logging.trace(f"\033[1;33m ping: {uid}:FALSE \033[0m")
             except Exception as e:
-                bt.logging.trace(f"\033[1;33 {e} \033[0m")                
+                bt.logging.trace(f"\033[1;33 {e} \033[0m")
                 continue
         if len(selected_miners) == 0:
             self.active_miners = []

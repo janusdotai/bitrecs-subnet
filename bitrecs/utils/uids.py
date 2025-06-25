@@ -116,7 +116,6 @@ def ping_miner_uid(self, uid, port=8091, timeout=5) -> bool:
     """  
     ip = self.metagraph.axons[uid].ip    
     #port = self.metagraph.axons[uid].port
-
     ignored = ["localhost", "127.0.0.1", "0.0.0.0"]
     if ip in ignored:
         bt.logging.trace("Ignoring localhost ping.")
@@ -140,4 +139,3 @@ def ping_miner_uid(self, uid, port=8091, timeout=5) -> bool:
     finally:        
         if 'sock' in locals():
             sock.close()
-   

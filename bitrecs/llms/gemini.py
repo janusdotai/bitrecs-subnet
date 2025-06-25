@@ -31,7 +31,9 @@ class Gemini:
             messages=[
                 {"role": "system", "content": self.system_prompt},
                 {"role": "user", "content": prompt}
-            ]
+            ],
+            temperature=self.temp,
+            max_tokens=2048
         )
         thing = completion.choices[0].message.content                
         return thing

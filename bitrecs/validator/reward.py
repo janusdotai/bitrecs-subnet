@@ -261,7 +261,7 @@ def get_rewards(
     catalog_validator = CatalogValidator(store_catalog)
     
     if not actions or len(actions) == 0:
-        bt.logging.warning(f"\033[1;31m WARNING - no actions found in get_rewards \033[0m")
+        bt.logging.warning(f"\033[1;33m WARNING - no actions found in get_rewards \033[0m")
         
     return np.array(
         [reward(num_recs, catalog_validator, response, actions) for response in responses], dtype=float

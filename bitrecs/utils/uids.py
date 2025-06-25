@@ -127,10 +127,10 @@ def ping_miner_uid(self, uid, port=8091, timeout=5) -> bool:
         sock.connect((ip, port))
         return True
     except ConnectionRefusedError:        
-        bt.logging.warning(f"Port {port} on IP {ip} is not connected.")
+        bt.logging.warning(f"Port {port} on for UID {uid} is not connected.")
         return False
     except socket.timeout:        
-        bt.logging.warning(f"Timeout on Port {port} on IP {ip}.")
+        bt.logging.warning(f"Timeout on Port {port} for UID {uid}.")
         return False
     except Exception as e:        
         bt.logging.error(f"An error occurred: {e}")
